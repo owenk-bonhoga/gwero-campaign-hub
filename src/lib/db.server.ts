@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import mysql, { type Pool } from "mysql2/promise";
 import { createDb, type DbInput, type DbResult } from "./db-query";
 import type { TableName } from "./db.types";
+import { withDatabaseReadRetry } from "./database-resilience";
 
 const fields: Record<TableName, string[]> = {
   prospects: [
@@ -805,6 +806,15 @@ const publicTables = new Set<TableName>([
 ]);
 let pool: Pool | undefined;
 
+const connectTimeoutMs = Math.max(
+  1_000,
+  Math.min(Number(process.env["DB_CONNECT_TIMEOUT_MS"] || 5_000), 15_000),
+);
+const queryTimeoutMs = Math.max(
+  1_000,
+  Math.min(Number(process.env["DB_QUERY_TIMEOUT_MS"] || 5_000), 15_000),
+);
+
 export function getPool() {
   if (!pool) {
     const database = process.env["DB_NAME"] || "gwero_crm";
@@ -822,11 +832,24 @@ export function getPool() {
           }),
       waitForConnections: true,
       connectionLimit: 10,
+      maxIdle: 10,
+      idleTimeout: 60_000,
+      queueLimit: 100,
+      connectTimeout: connectTimeoutMs,
+      enableKeepAlive: true,
+      keepAliveInitialDelay: 0,
       dateStrings: true,
       decimalNumbers: true,
     });
   }
   return pool;
+}
+
+export async function executeRead(sql: string, values: unknown[] = []) {
+  return withDatabaseReadRetry(
+    () => getPool().execute({ sql, timeout: queryTimeoutMs }, values as never[]),
+    { attempts: 2, delayMs: 100 },
+  );
 }
 
 function assertColumn(table: TableName, column: string) {
@@ -872,10 +895,7 @@ function where(input: DbInput) {
   return { sql: clauses.length ? ` WHERE ${clauses.join(" AND ")}` : "", params };
 }
 async function rows(table: TableName, clause: string, params: unknown[] = []) {
-  const [result] = await getPool().execute(
-    `SELECT * FROM \`${table}\`${clause}`,
-    params as never[],
-  );
+  const [result] = await executeRead(`SELECT * FROM \`${table}\`${clause}`, params);
   return (result as Array<Record<string, unknown>>).map((row) => decode(table, row));
 }
 async function enrich(table: TableName, input: DbInput, selected: Array<Record<string, unknown>>) {

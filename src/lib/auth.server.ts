@@ -7,7 +7,7 @@ import {
 } from "node:crypto";
 import { promisify } from "node:util";
 import { deleteCookie, getCookie, setCookie } from "@tanstack/react-start/server";
-import { getPool } from "./db.server";
+import { executeRead, getPool } from "./db.server";
 
 const scrypt = promisify(scryptCallback);
 const SESSION_DAYS = 7;
@@ -52,8 +52,7 @@ export async function verifyPassword(stored: string | null | undefined, password
 export async function currentUser(): Promise<AuthUser | null> {
   const token = getCookie(cookieName);
   if (!token) return null;
-  const db = getPool();
-  const [rows] = await db.execute(
+  const [rows] = await executeRead(
     `SELECT u.id, u.full_name, u.email, u.role_id, r.name AS role_name
        FROM auth_sessions s
        JOIN system_users u ON u.id = s.user_id
@@ -72,7 +71,7 @@ export async function currentUser(): Promise<AuthUser | null> {
     }>
   )[0];
   if (!row) return null;
-  const [permissionRows] = await db.execute(
+  const [permissionRows] = await executeRead(
     `SELECT p.permission_key
        FROM role_permissions rp
        JOIN permissions p ON p.id = rp.permission_id

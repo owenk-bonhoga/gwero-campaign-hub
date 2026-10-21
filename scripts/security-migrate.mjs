@@ -1,10 +1,12 @@
 import fs from "node:fs";
 import { createHash } from "node:crypto";
 import mysql from "mysql2/promise";
+const database = process.env.DB_NAME || "gwero_crm";
+if (!/^[a-zA-Z0-9_]+$/.test(database)) throw new Error("Invalid DB_NAME");
 const connectionOptions = {
   user: process.env.DB_USER || process.env.USER || "root",
   password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
+  database,
   ...(process.env.DB_SOCKET || (!process.env.DB_HOST && process.platform === "darwin")
     ? { socketPath: process.env.DB_SOCKET || "/tmp/mysql.sock" }
     : {

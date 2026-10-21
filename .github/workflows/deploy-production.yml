@@ -44,15 +44,11 @@ jobs:
       - name: Install verification dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
 
-      - name: Trigger the Hostinger deployment
-        env:
-          HOSTINGER_DEPLOY_WEBHOOK: ${{ secrets.HOSTINGER_DEPLOY_WEBHOOK }}
-        run: >-
-          test -n "$HOSTINGER_DEPLOY_WEBHOOK" &&
-          curl --fail --silent --show-error --retry 3
-          --output /dev/null "$HOSTINGER_DEPLOY_WEBHOOK"
-
-      - name: Verify the exact commit is live
+      # Hostinger's native Git integration watches this repository's protected
+      # main branch. The PR check has already verified this exact commit; this
+      # job starts after main CI succeeds and waits for Hostinger to finish its
+      # migration, build, and restart before accepting the deployment.
+      - name: Verify the Hostinger deployment and exact live commit
         env:
           EXPECTED_COMMIT: ${{ github.event.workflow_run.head_sha }}
           PRODUCTION_URL: https://os.gwerosolutions.com

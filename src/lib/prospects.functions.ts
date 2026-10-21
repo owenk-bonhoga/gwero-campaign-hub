@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { permissionMiddleware } from "./auth.middleware";
+import { copyProspectLocationsToClientSql } from "./prospect-conversion.sql";
 import {
   canonicalCompany,
   companyKey,
@@ -325,18 +326,11 @@ export const convertProspectToClient = createServerFn({ method: "POST" })
            location_is_inferred = VALUES(location_is_inferred), is_primary = VALUES(is_primary)`,
         [clientId, data.prospectId],
       );
-      await connection.execute(
-        `INSERT INTO organization_locations
-          (id, entity_type, entity_id, name, address_line, city, region, country, is_primary, source_url)
-         SELECT UUID(), 'client', ?, name, address_line, city, region, country, is_primary, source_url
-           FROM organization_locations source
-           LEFT JOIN organization_locations target
-             ON target.entity_type = 'client' AND target.entity_id = ?
-            AND target.name = source.name
-            AND COALESCE(target.address_line, '') = COALESCE(source.address_line, '')
-          WHERE source.entity_type = 'prospect' AND source.entity_id = ? AND target.id IS NULL`,
-        [clientId, clientId, data.prospectId],
-      );
+      await connection.execute(copyProspectLocationsToClientSql, [
+        clientId,
+        clientId,
+        data.prospectId,
+      ]);
       await connection.execute("UPDATE prospects SET status = 'client' WHERE id = ?", [
         data.prospectId,
       ]);

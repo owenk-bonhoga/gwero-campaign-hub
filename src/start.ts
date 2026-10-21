@@ -1,11 +1,23 @@
 import { createStart, createCsrfMiddleware, createMiddleware } from "@tanstack/react-start";
 
-import { renderErrorPage } from "./lib/error-page";
+import { isDatabaseUnavailableError } from "./lib/database-resilience";
+import { renderErrorPage, renderServiceUnavailablePage } from "./lib/error-page";
 
 const errorMiddleware = createMiddleware().server(async ({ next }) => {
   try {
     return await next();
   } catch (error) {
+    if (isDatabaseUnavailableError(error)) {
+      console.error(error);
+      return new Response(renderServiceUnavailablePage(), {
+        status: 503,
+        headers: {
+          "content-type": "text/html; charset=utf-8",
+          "cache-control": "no-store",
+          "retry-after": "5",
+        },
+      });
+    }
     if (error != null && typeof error === "object" && "statusCode" in error) {
       throw error;
     }

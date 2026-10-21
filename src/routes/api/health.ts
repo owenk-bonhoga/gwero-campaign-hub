@@ -5,8 +5,8 @@ export const Route = createFileRoute("/api/health")({
     handlers: {
       GET: async () => {
         try {
-          const { getPool } = await import("@/lib/db.server");
-          await getPool().query("SELECT 1");
+          const { executeRead } = await import("@/lib/db.server");
+          await executeRead("SELECT 1");
           return Response.json(
             { status: "ok", database: "connected" },
             { headers: { "cache-control": "no-store" } },

@@ -1,0 +1,71 @@
+name: Auto-merge verified production changes
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: gwero-production-merge
+  cancel-in-progress: false
+
+jobs:
+  merge:
+    if: >-
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      (github.event.workflow_run.head_repository.full_name == 'owenk-bonhoga/gwero-campaign-hub' ||
+       github.event.workflow_run.head_repository.full_name == 'christianbaluti/gwero-campaign-hub')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Merge the exact verified pull request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          HEAD_REPOSITORY: ${{ github.event.workflow_run.head_repository.full_name }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          case "$HEAD_REPOSITORY" in
+            owenk-bonhoga/gwero-campaign-hub|christianbaluti/gwero-campaign-hub) ;;
+            *) echo "Refusing untrusted source repository." >&2; exit 1 ;;
+          esac
+
+          head_owner="${HEAD_REPOSITORY%%/*}"
+          query="/repos/${REPOSITORY}/pulls?state=open&base=main&head=${head_owner}%3A${HEAD_BRANCH}"
+          pulls="$(gh api "$query")"
+          count="$(jq 'length' <<<"$pulls")"
+
+          if [[ "$count" != "1" ]]; then
+            echo "Expected one matching open pull request; found ${count}." >&2
+            exit 1
+          fi
+
+          pr_number="$(jq -r '.[0].number' <<<"$pulls")"
+          pr_sha="$(jq -r '.[0].head.sha' <<<"$pulls")"
+          is_draft="$(jq -r '.[0].draft' <<<"$pulls")"
+
+          [[ "$pr_sha" == "$HEAD_SHA" ]] || {
+            echo "Pull request head changed after CI verification." >&2
+            exit 1
+          }
+          [[ "$is_draft" == "false" ]] || {
+            echo "Draft pull requests are never auto-merged." >&2
+            exit 1
+          }
+
+          gh api --method PUT "/repos/${REPOSITORY}/pulls/${pr_number}/merge" \
+            -f merge_method=merge \
+            -f sha="$HEAD_SHA" \
+            --jq '.message'
