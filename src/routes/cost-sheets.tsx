@@ -30,6 +30,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import {
   createCostSheet,
+  deleteCostSheet,
   deleteCostSheetTemplate,
   getCostSheetDirectory,
   getCostSheetTemplates,
@@ -73,6 +74,7 @@ function CostSheetsPage() {
   const loadDirectory = useServerFn(getCostSheetDirectory);
   const loadTemplates = useServerFn(getCostSheetTemplates);
   const createSheet = useServerFn(createCostSheet);
+  const removeSheet = useServerFn(deleteCostSheet);
   const removeTemplate = useServerFn(deleteCostSheetTemplate);
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
@@ -140,6 +142,14 @@ function CostSheetsPage() {
     },
     onError: (error: Error) => toast.error(error.message),
   });
+  const deleteSheetMutation = useMutation({
+    mutationFn: (costSheetId: string) => removeSheet({ data: { costSheetId } }),
+    onSuccess: async () => {
+      toast.success("Cost sheet deleted.");
+      await queryClient.invalidateQueries({ queryKey: ["cost-sheet-directory"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
 
   return (
     <AppShell
@@ -189,7 +199,12 @@ function CostSheetsPage() {
         ) : filtered.length ? (
           <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">
             {filtered.map((sheet) => (
-              <CostSheetCard key={sheet.id} sheet={sheet} />
+              <CostSheetCard
+                key={sheet.id}
+                sheet={sheet}
+                deleting={deleteSheetMutation.isPending}
+                onDelete={() => deleteSheetMutation.mutateAsync(sheet.id)}
+              />
             ))}
           </div>
         ) : (
@@ -225,11 +240,19 @@ function CostSheetsPage() {
   );
 }
 
-function CostSheetCard({ sheet }: { sheet: CostSheetDirectoryRecord }) {
+function CostSheetCard({
+  sheet,
+  deleting,
+  onDelete,
+}: {
+  sheet: CostSheetDirectoryRecord;
+  deleting: boolean;
+  onDelete: () => Promise<unknown>;
+}) {
   const clientName = sheet.client_name || "No client linked";
   return (
-    <Link to="/cost-sheets/$id" params={{ id: sheet.id }} className="group block">
-      <Card className="h-full transition group-hover:-translate-y-0.5 group-hover:border-primary/30 group-hover:shadow-md">
+    <Card className="group relative h-full transition hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md">
+      <Link to="/cost-sheets/$id" params={{ id: sheet.id }} className="block h-full pr-12">
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
             <Avatar className="size-11 rounded-xl border bg-white">
@@ -272,8 +295,26 @@ function CostSheetCard({ sheet }: { sheet: CostSheetDirectoryRecord }) {
             </p>
           ) : null}
         </CardContent>
-      </Card>
-    </Link>
+      </Link>
+      <div className="absolute right-3 top-3">
+        <ConfirmAction
+          title={`Delete ${sheet.name}?`}
+          description="This permanently removes the cost sheet, its items, custom columns and quotation links. Linked opportunities will be kept and unlinked."
+          onConfirm={onDelete}
+          disabled={deleting}
+          trigger={
+            <Button
+              size="icon"
+              variant="ghost"
+              className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+              aria-label={`Delete ${sheet.name}`}
+            >
+              <Trash2 className="size-4" />
+            </Button>
+          }
+        />
+      </div>
+    </Card>
   );
 }
 

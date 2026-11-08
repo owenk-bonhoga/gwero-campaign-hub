@@ -629,6 +629,47 @@ export const updateCostSheet = createServerFn({ method: "POST" })
     return { updated: true };
   });
 
+export const deleteCostSheet = createServerFn({ method: "POST" })
+  .middleware([permissionMiddleware("opportunities.manage")])
+  .validator((data: { costSheetId: string }) => data)
+  .handler(async ({ data }) => {
+    if (!data.costSheetId) throw new Error("Cost sheet not found.");
+    const { getPool } = await import("./db.server");
+    const connection = await getPool().getConnection();
+    try {
+      await connection.beginTransaction();
+      const [sheetRows] = await connection.execute(
+        "SELECT id FROM cost_sheets WHERE id = ? LIMIT 1 FOR UPDATE",
+        [data.costSheetId],
+      );
+      if (!(sheetRows as Array<{ id: string }>).length) throw new Error("Cost sheet not found.");
+
+      // Opportunities remain intact; only their link to the removed working sheet is cleared.
+      await connection.execute("UPDATE bids SET cost_sheet_id = NULL WHERE cost_sheet_id = ?", [
+        data.costSheetId,
+      ]);
+      await connection.execute(
+        "UPDATE prequalifications SET cost_sheet_id = NULL WHERE cost_sheet_id = ?",
+        [data.costSheetId],
+      );
+      await connection.execute("UPDATE requests SET cost_sheet_id = NULL WHERE cost_sheet_id = ?", [
+        data.costSheetId,
+      ]);
+      const [result] = await connection.execute("DELETE FROM cost_sheets WHERE id = ?", [
+        data.costSheetId,
+      ]);
+      if (!(result as { affectedRows: number }).affectedRows)
+        throw new Error("Cost sheet not found.");
+      await connection.commit();
+      return { deleted: true };
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  });
+
 export const getCostSheetDirectory = createServerFn({ method: "GET" })
   .middleware([permissionMiddleware("opportunities.manage")])
   .handler(async () => {

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { useNavigate } from "@tanstack/react-router";
 import {
   Calculator,
   BookmarkPlus,
@@ -41,6 +42,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import {
   applyCostSheetTemplate,
+  deleteCostSheet,
   deleteCostSheetColumn,
   deleteCostSheetItem,
   getCostSheetWorkspace,
@@ -135,6 +137,7 @@ function valueForColumn(item: CostSheetItem, column: CostSheetColumn) {
 }
 
 export function CostSheetWorkspace({ costSheetId }: { costSheetId: string }) {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const loadWorkspace = useServerFn(getCostSheetWorkspace);
   const saveItem = useServerFn(saveCostSheetItem);
@@ -143,6 +146,7 @@ export function CostSheetWorkspace({ costSheetId }: { costSheetId: string }) {
   const saveRules = useServerFn(saveCostSheetColumnRules);
   const removeColumn = useServerFn(deleteCostSheetColumn);
   const saveSheet = useServerFn(updateCostSheet);
+  const removeSheet = useServerFn(deleteCostSheet);
   const setSourceQuote = useServerFn(setCostSheetSourceQuote);
   const loadTemplates = useServerFn(getCostSheetTemplates);
   const applyTemplate = useServerFn(applyCostSheetTemplate);
@@ -330,6 +334,16 @@ export function CostSheetWorkspace({ costSheetId }: { costSheetId: string }) {
     },
     onError: (mutationError: Error) => toast.error(mutationError.message),
   });
+  const deleteSheetMutation = useMutation({
+    mutationFn: () => removeSheet({ data: { costSheetId } }),
+    onSuccess: async () => {
+      toast.success("Cost sheet deleted.");
+      queryClient.removeQueries({ queryKey });
+      await queryClient.invalidateQueries({ queryKey: ["cost-sheet-directory"] });
+      await navigate({ to: "/cost-sheets" });
+    },
+    onError: (mutationError: Error) => toast.error(mutationError.message),
+  });
   const rulesMutation = useMutation({
     mutationFn: () => saveRules({ data: { costSheetId, rules: rulesForm } }),
     onSuccess: async () => {
@@ -440,6 +454,17 @@ export function CostSheetWorkspace({ costSheetId }: { costSheetId: string }) {
             >
               <Settings2 className="mr-2 size-4" /> Sheet details
             </Button>
+            <ConfirmAction
+              title={`Delete ${sheet.name}?`}
+              description="This permanently removes the cost sheet, its items, custom columns and quotation links. Linked opportunities will be kept and unlinked."
+              onConfirm={() => deleteSheetMutation.mutateAsync()}
+              disabled={deleteSheetMutation.isPending}
+              trigger={
+                <Button variant="outline" className="text-destructive hover:text-destructive">
+                  <Trash2 className="mr-2 size-4" /> Delete sheet
+                </Button>
+              }
+            />
             <Button variant="outline" onClick={openNewColumn}>
               <Plus className="mr-2 size-4" /> Custom column
             </Button>
