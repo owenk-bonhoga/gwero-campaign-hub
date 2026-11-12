@@ -34,6 +34,7 @@ import {
   Settings,
   LogOut,
   ChevronDown,
+  CalendarDays,
 } from "lucide-react";
 import { db } from "@/lib/db";
 import { getAuthStatus, logout } from "@/lib/auth.functions";
@@ -62,7 +63,10 @@ const nav = (to: string, label: string, icon: LucideIcon): NavItem => ({ to, lab
 const navGroups = [
   {
     label: "Overview",
-    items: [nav("/", "Dashboard", LayoutDashboard)],
+    items: [
+      nav("/", "Dashboard", LayoutDashboard),
+      nav("/meetings", "Calendar & meetings", CalendarDays),
+    ],
   },
   {
     label: "Sales",

@@ -8,6 +8,7 @@ import { smtpSend } from "./smtp.server";
 
 type CampaignRow = {
   id: string;
+  owner_id: string;
   name: string;
   mailbox_id: string;
   attachments: string | Array<{ path: string; name: string; type?: string }>;
@@ -131,8 +132,17 @@ async function deliverEmail(
     extra,
   };
   const subject = personalize(step.subject || "", person);
+  const unsignedHtml = personalize(step.body_html || "", person);
+  const { applyActiveEmailSignature } = await import("./email-identity.server");
+  const signed = await applyActiveEmailSignature(
+    getPool(),
+    campaign.owner_id,
+    campaign.mailbox_id,
+    unsignedHtml,
+    htmlToText(unsignedHtml),
+  );
   const html = trackHtml(
-    personalize(step.body_html || "", person),
+    signed.html,
     recipient.id,
     Boolean(campaign.track_opens),
     Boolean(campaign.track_clicks),
@@ -168,7 +178,7 @@ async function deliverEmail(
     cc,
     subject,
     html,
-    text: htmlToText(html),
+    text: signed.text,
     attachments,
     messageId,
   });

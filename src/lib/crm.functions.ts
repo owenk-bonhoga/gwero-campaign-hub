@@ -53,7 +53,10 @@ export async function gatewayFetch(
       grant_type: "refresh_token",
     });
     if (!google)
-      body.set("scope", "openid email profile offline_access User.Read Mail.Read Mail.Send");
+      body.set(
+        "scope",
+        "openid email profile offline_access User.Read Mail.Read Mail.Send OnlineMeetings.ReadWrite",
+      );
     const refreshed = await fetch(tokenUrl, {
       method: "POST",
       headers: { "content-type": "application/x-www-form-urlencoded" },
@@ -82,7 +85,14 @@ export async function gatewayFetch(
       : "https://graph.microsoft.com/v1.0";
   const headers = new Headers(init?.headers);
   headers.set("authorization", `Bearer ${accessToken}`);
-  return fetch(`${base}${path}`, { ...init, headers });
+  const absolute = /^https:\/\//i.test(path);
+  if (absolute) {
+    const target = new URL(path);
+    const allowed =
+      (provider === "google" || provider === "gmail") && target.hostname === "meet.googleapis.com";
+    if (!allowed) throw new Error("Unsupported OAuth service endpoint.");
+  }
+  return fetch(absolute ? path : `${base}${path}`, { ...init, headers });
 }
 
 /* ------------------------------------------------------------------ */
@@ -90,9 +100,12 @@ export async function gatewayFetch(
 /* ------------------------------------------------------------------ */
 
 export const saveMailboxCredentials = createServerFn({ method: "POST" })
-  .middleware([permissionMiddleware("settings.manage")])
+  .middleware([permissionMiddleware("campaigns.manage")])
   .validator((data: { mailboxId: string; smtpPassword?: string; imapPassword?: string }) => data)
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    const { getPool } = await import("./db.server");
+    const { requireMailboxAccess } = await import("./email-identity.server");
+    await requireMailboxAccess(getPool(), data.mailboxId, context.user, true);
     const db = await admin();
     const patch: Json = { mailbox_id: data.mailboxId, updated_at: new Date().toISOString() };
     if (data.smtpPassword) patch["smtp_password"] = data.smtpPassword;
@@ -105,9 +118,12 @@ export const saveMailboxCredentials = createServerFn({ method: "POST" })
   });
 
 export const testMailbox = createServerFn({ method: "POST" })
-  .middleware([permissionMiddleware("settings.manage")])
+  .middleware([permissionMiddleware("campaigns.manage")])
   .validator((data: { mailboxId: string }) => data)
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    const { getPool } = await import("./db.server");
+    const { requireMailboxAccess } = await import("./email-identity.server");
+    await requireMailboxAccess(getPool(), data.mailboxId, context.user);
     const db = await admin();
     const { data: mailbox, error } = await db
       .from("mailboxes")
@@ -191,7 +207,7 @@ function trackHtml(
 export const sendCampaign = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("campaigns.manage")])
   .validator((data: { campaignId: string }) => data)
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
     const db = await admin();
     const origin = appOrigin();
 
@@ -202,6 +218,9 @@ export const sendCampaign = createServerFn({ method: "POST" })
       .single();
     if (cErr || !campaign) throw new Error("Campaign not found");
     if (!campaign.mailbox_id) throw new Error("Pick a sending account for this campaign first.");
+    const { getPool } = await import("./db.server");
+    const { requireMailboxAccess } = await import("./email-identity.server");
+    await requireMailboxAccess(getPool(), campaign.mailbox_id, context.user);
 
     const { data: mailbox } = await db
       .from("mailboxes")
@@ -259,14 +278,23 @@ export const sendCampaign = createServerFn({ method: "POST" })
       try {
         if (!prospect?.email) throw new Error("Prospect has no email address");
         const subject = personalize(campaign.subject, prospect);
+        const { applyActiveEmailSignature } = await import("./email-identity.server");
+        const unsignedHtml = personalize(campaign.body_html, prospect);
+        const signed = await applyActiveEmailSignature(
+          getPool(),
+          context.user.id,
+          campaign.mailbox_id,
+          unsignedHtml,
+          htmlToText(unsignedHtml),
+        );
         const html = trackHtml(
-          personalize(campaign.body_html, prospect),
+          signed.html,
           recipient.id,
           origin,
           campaign.track_opens,
           campaign.track_clicks,
         );
-        const text = htmlToText(html);
+        const text = signed.text;
         const messageId = `<${recipient.id}@gwero-crm>`;
 
         const raw = buildMime({
@@ -433,7 +461,7 @@ export const sendProspectEmail = createServerFn({ method: "POST" })
       attachments?: Array<{ path: string; name: string; type: string; size: number }>;
     }) => data,
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
     const db = await admin();
     const { data: contact } = await db
       .from("prospect_contacts")
@@ -442,12 +470,10 @@ export const sendProspectEmail = createServerFn({ method: "POST" })
       .eq("prospect_id", data.prospectId)
       .maybeSingle();
     if (!contact?.email) throw new Error("This contact does not have an email address.");
-    const { data: mailbox } = await db
-      .from("mailboxes")
-      .select("*")
-      .eq("id", data.mailboxId)
-      .maybeSingle();
-    if (!mailbox) throw new Error("Choose a configured sending account.");
+    const { getPool } = await import("./db.server");
+    const { requireMailboxAccess, applyActiveEmailSignature } =
+      await import("./email-identity.server");
+    const mailbox = await requireMailboxAccess(getPool(), data.mailboxId, context.user);
     const { data: secret } = await db
       .from("mailbox_secrets")
       .select("*")
@@ -456,9 +482,17 @@ export const sendProspectEmail = createServerFn({ method: "POST" })
     const subject = data.subject.trim();
     const body = data.body.trim();
     if (!subject || !body) throw new Error("Add both a subject and message.");
-    const html =
+    const unsignedHtml =
       data.bodyHtml?.trim() ||
       `<div style="white-space:pre-wrap">${body.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>`;
+    const signed = await applyActiveEmailSignature(
+      getPool(),
+      context.user.id,
+      data.mailboxId,
+      unsignedHtml,
+      body,
+    );
+    const html = signed.html;
     const attachmentMeta = data.attachments ?? [];
     const { readAttachment } = await import("./attachments.server");
     const attachments = await Promise.all(
@@ -480,7 +514,7 @@ export const sendProspectEmail = createServerFn({ method: "POST" })
       to: contact.email,
       subject,
       html,
-      text: body,
+      text: signed.text,
       attachments,
       messageId,
     });
@@ -563,9 +597,23 @@ export const sendProspectEmail = createServerFn({ method: "POST" })
 
 export const syncReplies = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("campaigns.manage")])
-  .handler(async () => {
+  .handler(async ({ context }) => {
     const db = await admin();
-    const { data: mailboxes } = await db.from("mailboxes").select("*");
+    const { getPool } = await import("./db.server");
+    const [mailboxRows] = await getPool().execute(
+      `SELECT m.* FROM mailboxes m
+       JOIN mailbox_access ma ON ma.mailbox_id = m.id
+       WHERE ma.user_id = ? AND ma.can_send = TRUE`,
+      [context.user.id],
+    );
+    const mailboxes = mailboxRows as Array<{
+      id: string;
+      provider: string;
+      imap_host: string | null;
+      imap_port: number | null;
+      imap_username: string | null;
+      smtp_username: string | null;
+    }>;
     if (!mailboxes?.length) return { imported: 0, checked: 0 };
 
     const { data: prospects } = await db.from("prospects").select("id, email");

@@ -156,7 +156,10 @@ export const listOpportunityDependencies = createServerFn({ method: "GET" })
         "SELECT id, full_name, email FROM system_users WHERE status = 'active' ORDER BY full_name",
       ),
       db.query(
-        "SELECT id, name, from_email, provider, is_default FROM mailboxes ORDER BY is_default DESC, name",
+        `SELECT m.id, m.name, m.from_email, m.provider, ma.is_default
+           FROM mailboxes m JOIN mailbox_access ma ON ma.mailbox_id = m.id
+          WHERE ma.user_id = ? AND ma.can_send = TRUE ORDER BY ma.is_default DESC, m.name`,
+        [context.user.id],
       ),
       db.query(
         "SELECT id, name, client_id, status, currency FROM cost_sheets ORDER BY updated_at DESC",
@@ -985,6 +988,7 @@ export const submitOpportunity = createServerFn({ method: "POST" })
     if (!opportunity) throw new Error("Opportunity not found.");
     const submissionId = crypto.randomUUID();
     let messageId: string | null = null;
+    let submittedBodyHtml = data.bodyHtml || null;
     if (data.channel === "email") {
       if (
         !data.mailboxId ||
@@ -995,15 +999,27 @@ export const submitOpportunity = createServerFn({ method: "POST" })
         throw new Error("Choose a mailbox and add the recipient, subject and message.");
       assertEmail(data.recipientEmail, "Recipient");
       splitEmails(data.cc).forEach((email) => assertEmail(email, "CC address"));
-      const mailbox = rows<SerializableRecord>(
-        await db.query("SELECT * FROM mailboxes WHERE id = ? LIMIT 1", [data.mailboxId]),
-      )[0];
+      const { requireMailboxAccess, applyActiveEmailSignature } =
+        await import("./email-identity.server");
+      const mailbox = (await requireMailboxAccess(
+        db,
+        data.mailboxId,
+        context.user,
+      )) as SerializableRecord;
       const secret = rows<SerializableRecord>(
         await db.query("SELECT * FROM mailbox_secrets WHERE mailbox_id = ? LIMIT 1", [
           data.mailboxId,
         ]),
       )[0];
       if (!mailbox) throw new Error("Sending account not found.");
+      const signedBody = await applyActiveEmailSignature(
+        db,
+        context.user.id,
+        data.mailboxId,
+        data.bodyHtml,
+        data.bodyText || data.bodyHtml.replace(/<[^>]+>/g, " "),
+      );
+      submittedBodyHtml = signedBody.html;
       const fileRows = rows<Record<string, unknown>>(
         await db.query(
           `SELECT od.*, af.content FROM opportunity_documents od
@@ -1052,8 +1068,8 @@ export const submitOpportunity = createServerFn({ method: "POST" })
         to: data.recipientEmail,
         cc: splitEmails(data.cc),
         subject: data.subject.trim(),
-        html: data.bodyHtml,
-        text: data.bodyText || data.bodyHtml.replace(/<[^>]+>/g, " "),
+        html: signedBody.html,
+        text: signedBody.text,
         attachments,
         messageId,
       });
@@ -1103,7 +1119,7 @@ export const submitOpportunity = createServerFn({ method: "POST" })
           body: JSON.stringify({
             message: {
               subject: data.subject,
-              body: { contentType: "HTML", content: data.bodyHtml },
+              body: { contentType: "HTML", content: signedBody.html },
               toRecipients: [{ emailAddress: { address: data.recipientEmail } }],
               ccRecipients: splitEmails(data.cc).map((address) => ({ emailAddress: { address } })),
               attachments: attachments.map((file) => ({
@@ -1132,7 +1148,7 @@ export const submitOpportunity = createServerFn({ method: "POST" })
         data.recipientEmail || null,
         JSON.stringify(splitEmails(data.cc)),
         data.subject || null,
-        data.bodyHtml || null,
+        submittedBodyHtml,
         data.fileMode || "separate",
         String(opportunity["submission_instructions"] || ""),
         messageId,

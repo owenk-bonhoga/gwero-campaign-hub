@@ -189,8 +189,10 @@ export const getCampaignWorkspace = createServerFn({ method: "GET" })
           [data.campaignId],
         ),
         db.execute(
-          `SELECT id, name, from_email, from_name, provider, is_default, last_status
-             FROM mailboxes ORDER BY is_default DESC, name ASC`,
+          `SELECT m.id, m.name, m.from_email, m.from_name, m.provider, ma.is_default, m.last_status
+             FROM mailboxes m JOIN mailbox_access ma ON ma.mailbox_id = m.id
+            WHERE ma.user_id = ? AND ma.can_send = TRUE ORDER BY ma.is_default DESC, m.name ASC`,
+          [context.user.id],
         ),
         db.execute(
           `SELECT id, full_name, email FROM system_users WHERE status = 'active' ORDER BY full_name`,
@@ -279,6 +281,19 @@ export const updateCampaign = createServerFn({ method: "POST" })
   .validator((data: CampaignPatch) => data)
   .handler(async ({ data, context }) => {
     const { getPool } = await import("./db.server");
+    if (data.mailboxId) {
+      const { requireMailboxAccess } = await import("./email-identity.server");
+      await requireMailboxAccess(getPool(), data.mailboxId, context.user);
+      const ownerId = data.ownerId || context.user.id;
+      if (ownerId !== context.user.id) {
+        const [ownerAccess] = await getPool().execute(
+          "SELECT mailbox_id FROM mailbox_access WHERE mailbox_id = ? AND user_id = ? AND can_send = TRUE LIMIT 1",
+          [data.mailboxId, ownerId],
+        );
+        if (!(ownerAccess as Array<{ mailbox_id: string }>)[0])
+          throw new Error("Grant the campaign owner sending access to this account first.");
+      }
+    }
     const editable = await getPool().execute(
       `UPDATE campaigns SET name = ?, campaign_type = ?, objective = ?, mailbox_id = ?,
               owner_id = ?, daily_limit = ?, timezone = ?, approval_required = ?,
@@ -421,7 +436,7 @@ export const removeCampaignRecipient = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-async function validateReady(campaignId: string) {
+async function validateReady(campaignId: string, user?: { id: string; roleName: string | null }) {
   const { getPool } = await import("./db.server");
   const [rows] = await getPool().execute(
     `SELECT c.mailbox_id,
@@ -443,6 +458,10 @@ async function validateReady(campaignId: string) {
   )[0];
   if (!ready) throw new Error("Campaign not found.");
   if (!ready.mailbox_id) throw new Error("Choose a sending account first.");
+  if (user) {
+    const { requireMailboxAccess } = await import("./email-identity.server");
+    await requireMailboxAccess(getPool(), ready.mailbox_id, user);
+  }
   if (!Number(ready.steps)) throw new Error("Add at least one sequence step.");
   if (Number(ready.invalid_steps))
     throw new Error(
@@ -477,7 +496,7 @@ export const changeCampaignStatus = createServerFn({ method: "POST" })
     if (!campaign) throw new Error("Campaign not found.");
 
     if (data.action === "submit") {
-      await validateReady(data.campaignId);
+      await validateReady(data.campaignId, context.user);
       const next = campaign.approval_required ? "in_review" : "approved";
       await db.execute(
         `UPDATE campaigns SET status = ?, approved_by = ?, approved_at = ? WHERE id = ? AND status = 'draft'`,
@@ -507,7 +526,7 @@ export const changeCampaignStatus = createServerFn({ method: "POST" })
         [data.campaignId],
       );
     } else {
-      await validateReady(data.campaignId);
+      await validateReady(data.campaignId, context.user);
       if (campaign.approval_required && !campaign.approved_at)
         throw new Error("This campaign must be approved before it can start.");
       const scheduled =

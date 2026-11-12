@@ -63,7 +63,7 @@ async function secureResponse(response: Response): Promise<Response> {
     const nonce = randomBytes(24).toString("base64");
     headers.set(
       "Content-Security-Policy",
-      `default-src 'self'; script-src 'self' 'nonce-${nonce}'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; frame-src 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'`,
+      `default-src 'self'; script-src 'self' 'nonce-${nonce}'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; frame-src 'self' https://meet.jit.si; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'`,
     );
     // TanStack reads this meta value when hydrating dynamically inserted scripts.
     const protectedHtml = html

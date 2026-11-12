@@ -9,13 +9,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ConfirmAction } from "@/components/ConfirmAction";
 import { saveMailboxCredentials, testMailbox } from "@/lib/crm.functions";
-import { db } from "@/lib/db";
+import {
+  deleteMailbox,
+  getEmailIdentityWorkspace,
+  saveMailbox,
+  setDefaultMailbox,
+  setMailboxUserAccess,
+} from "@/lib/email-identity.functions";
+
+type Row = Record<string, unknown>;
 
 export function MailboxSettings() {
   const qc = useQueryClient();
   const saveSecrets = useServerFn(saveMailboxCredentials);
   const test = useServerFn(testMailbox);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [grantUser, setGrantUser] = useState<Record<string, string>>({});
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -29,17 +38,17 @@ export function MailboxSettings() {
     isDefault: false,
     provider: "smtp",
   });
-  const { data: mailboxes = [] } = useQuery({
-    queryKey: ["mailboxes"],
-    queryFn: async () => {
-      const { data, error } = await db
-        .from("mailboxes")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data ?? [];
-    },
+  const { data: workspace } = useQuery({
+    queryKey: ["email-identity-workspace"],
+    queryFn: () =>
+      getEmailIdentityWorkspace() as Promise<{
+        mailboxes: Row[];
+        users: Row[];
+        access: Row[];
+        userId: string;
+      }>,
   });
+  const mailboxes = workspace?.mailboxes || [];
   const resetForm = () => {
     setEditingId(null);
     setForm({
@@ -67,38 +76,30 @@ export function MailboxSettings() {
         throw new Error(
           smtp ? "Complete the required SMTP fields." : "Add the account name and email.",
         );
-      if (form.isDefault) {
-        const { error } = await db.from("mailboxes").update({ is_default: false });
-        if (error) throw error;
-      }
-      const values = {
-        name: form.name.trim(),
-        from_email: form.email.trim().toLowerCase(),
-        from_name: form.fromName.trim() || null,
-        provider: form.provider,
-        smtp_host: smtp ? form.smtpHost.trim() : null,
-        smtp_port: smtp ? Number(form.smtpPort) : null,
-        smtp_username: smtp ? form.username.trim() : null,
-        smtp_secure: smtp && Number(form.smtpPort) === 465,
-        imap_host: smtp ? form.imapHost.trim() || null : null,
-        imap_port: smtp ? Number(form.imapPort) : null,
-        imap_username: smtp ? form.username.trim() : null,
-        is_default: form.isDefault,
-      };
-      const query = editingId
-        ? db.from("mailboxes").update(values).eq("id", editingId)
-        : db.from("mailboxes").insert(values);
-      const { data, error } = await query.select().single();
-      if (error || !data) throw error || new Error("Account was not saved.");
+      const result = await saveMailbox({
+        data: {
+          ...(editingId ? { id: editingId } : {}),
+          name: form.name,
+          email: form.email,
+          fromName: form.fromName,
+          provider: form.provider,
+          smtpHost: form.smtpHost,
+          smtpPort: Number(form.smtpPort),
+          username: form.username,
+          imapHost: form.imapHost,
+          imapPort: Number(form.imapPort),
+        },
+      });
       if (smtp && form.password)
         await saveSecrets({
-          data: { mailboxId: data.id, smtpPassword: form.password, imapPassword: form.password },
+          data: { mailboxId: result.id, smtpPassword: form.password, imapPassword: form.password },
         });
+      if (form.isDefault) await setDefaultMailbox({ data: { mailboxId: result.id } });
     },
     onSuccess: () => {
       toast.success(editingId ? "Sending account updated." : "Sending account saved.");
       resetForm();
-      void qc.invalidateQueries({ queryKey: ["mailboxes"] });
+      void qc.invalidateQueries({ queryKey: ["email-identity-workspace"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -106,39 +107,35 @@ export function MailboxSettings() {
     try {
       const result = await test({ data: { mailboxId: id } });
       toast.success(result.message);
-      void qc.invalidateQueries({ queryKey: ["mailboxes"] });
+      void qc.invalidateQueries({ queryKey: ["email-identity-workspace"] });
     } catch (e) {
       toast.error((e as Error).message);
     }
   };
   const remove = async (id: string) => {
-    const { error } = await db.from("mailboxes").delete().eq("id", id);
-    if (error) {
-      toast.error(error.message);
-      throw error;
-    }
+    await deleteMailbox({ data: { id } });
     toast.success("Sending account deleted.");
-    void qc.invalidateQueries({ queryKey: ["mailboxes"] });
+    void qc.invalidateQueries({ queryKey: ["email-identity-workspace"] });
   };
   const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((old) => ({
       ...old,
       [key]: e.target.type === "checkbox" ? e.target.checked : e.target.value,
     }));
-  const edit = (mailbox: (typeof mailboxes)[number]) => {
-    setEditingId(mailbox.id);
+  const edit = (mailbox: Row) => {
+    setEditingId(String(mailbox["id"]));
     setForm({
-      name: mailbox.name,
-      email: mailbox.from_email,
-      fromName: mailbox.from_name || "",
-      smtpHost: mailbox.smtp_host || "",
-      smtpPort: String(mailbox.smtp_port || 587),
-      username: mailbox.smtp_username || mailbox.from_email,
+      name: String(mailbox["name"]),
+      email: String(mailbox["from_email"]),
+      fromName: String(mailbox["from_name"] || ""),
+      smtpHost: String(mailbox["smtp_host"] || ""),
+      smtpPort: String(mailbox["smtp_port"] || 587),
+      username: String(mailbox["smtp_username"] || mailbox["from_email"]),
       password: "",
-      imapHost: mailbox.imap_host || "",
-      imapPort: String(mailbox.imap_port || 993),
-      isDefault: mailbox.is_default,
-      provider: mailbox.provider,
+      imapHost: String(mailbox["imap_host"] || ""),
+      imapPort: String(mailbox["imap_port"] || 993),
+      isDefault: Boolean(mailbox["is_default"]),
+      provider: String(mailbox["provider"]),
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -206,31 +203,135 @@ export function MailboxSettings() {
       <div className="space-y-3">
         <h3 className="font-semibold">Connected sending accounts</h3>
         {mailboxes.map((m) => (
-          <Card key={m.id}>
+          <Card key={String(m["id"])}>
             <CardContent className="flex flex-wrap items-center gap-3 pt-4">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <p className="font-semibold">{m.name}</p>
-                  <Badge variant="secondary">{m.provider}</Badge>
-                  {m.is_default ? <Badge>Default</Badge> : null}
+                  <p className="font-semibold">{String(m["name"])}</p>
+                  <Badge variant="secondary">{String(m["provider"])}</Badge>
+                  {m["is_default"] ? <Badge>My default</Badge> : null}
                 </div>
-                <p className="text-sm text-muted-foreground">{m.from_email}</p>
+                <p className="text-sm text-muted-foreground">{String(m["from_email"])}</p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {m.last_status || "Not tested yet"}
+                  {String(m["last_status"] || "Not tested yet")}
                 </p>
               </div>
-              <Button variant="outline" onClick={() => void check(m.id)}>
+              <Button variant="outline" onClick={() => void check(String(m["id"]))}>
                 Test
               </Button>
-              <Button variant="outline" onClick={() => edit(m)}>
+              <Button
+                variant="outline"
+                onClick={() => edit(m)}
+                disabled={!m["can_manage"] && m["created_by"] !== workspace?.userId}
+              >
                 Edit
               </Button>
               <ConfirmAction
                 title="Delete sending account?"
-                description={`Remove ${m.from_email} and its stored credentials? Campaign history will remain.`}
-                onConfirm={() => remove(m.id)}
+                description={`Remove ${String(m["from_email"])} and its stored credentials? Campaign history will remain.`}
+                onConfirm={() => remove(String(m["id"]))}
+                disabled={!m["can_manage"] && m["created_by"] !== workspace?.userId}
                 trigger={<Button variant="destructive">Delete</Button>}
               />
+              {m["can_manage"] || m["created_by"] === workspace?.userId ? (
+                <div className="basis-full rounded-lg border bg-muted/30 p-3">
+                  <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
+                    Give another user access
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <select
+                      className="h-9 min-w-56 rounded-md border bg-background px-3 text-sm"
+                      value={grantUser[String(m["id"])] || ""}
+                      onChange={(e) =>
+                        setGrantUser((v) => ({ ...v, [String(m["id"])]: e.target.value }))
+                      }
+                    >
+                      <option value="">Choose user</option>
+                      {(workspace?.users || [])
+                        .filter((u) => u["id"] !== workspace?.userId)
+                        .map((u) => (
+                          <option key={String(u["id"])} value={String(u["id"])}>
+                            {String(u["full_name"])} · {String(u["email"])}
+                          </option>
+                        ))}
+                    </select>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={!grantUser[String(m["id"])]}
+                      onClick={async () => {
+                        await setMailboxUserAccess({
+                          data: {
+                            mailboxId: String(m["id"]),
+                            userId: grantUser[String(m["id"])] || "",
+                            canSend: true,
+                            canManage: false,
+                          },
+                        });
+                        toast.success("Sending access granted.");
+                        void qc.invalidateQueries({ queryKey: ["email-identity-workspace"] });
+                      }}
+                    >
+                      Grant sending access
+                    </Button>
+                    <Button
+                      size="sm"
+                      disabled={!grantUser[String(m["id"])]}
+                      onClick={async () => {
+                        await setMailboxUserAccess({
+                          data: {
+                            mailboxId: String(m["id"]),
+                            userId: grantUser[String(m["id"])] || "",
+                            canSend: true,
+                            canManage: true,
+                          },
+                        });
+                        toast.success("Sending and management access granted.");
+                        void qc.invalidateQueries({ queryKey: ["email-identity-workspace"] });
+                      }}
+                    >
+                      Grant management
+                    </Button>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {(workspace?.access || [])
+                      .filter(
+                        (a) => a["mailbox_id"] === m["id"] && a["user_id"] !== workspace?.userId,
+                      )
+                      .map((a) => (
+                        <div
+                          key={String(a["user_id"])}
+                          className="flex items-center gap-1 rounded-full border bg-background py-0.5 pl-2"
+                        >
+                          <span className="text-xs">
+                            {String(a["full_name"])} · {a["can_manage"] ? "manage" : "send"}
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 rounded-full px-2 text-xs text-destructive"
+                            onClick={async () => {
+                              await setMailboxUserAccess({
+                                data: {
+                                  mailboxId: String(m["id"]),
+                                  userId: String(a["user_id"]),
+                                  canSend: false,
+                                  canManage: false,
+                                },
+                              });
+                              toast.success("Access revoked.");
+                              void qc.invalidateQueries({
+                                queryKey: ["email-identity-workspace"],
+                              });
+                            }}
+                          >
+                            Revoke
+                          </Button>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              ) : null}
             </CardContent>
           </Card>
         ))}

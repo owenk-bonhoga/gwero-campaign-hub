@@ -8,7 +8,7 @@ const config = {
     token: "https://oauth2.googleapis.com/token",
     profile: "https://www.googleapis.com/oauth2/v2/userinfo",
     scopes:
-      "openid email profile https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.readonly",
+      "openid email profile https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/meetings.space.created",
     clientId: "GOOGLE_OAUTH_CLIENT_ID",
     clientSecret: "GOOGLE_OAUTH_CLIENT_SECRET",
   },
@@ -16,7 +16,8 @@ const config = {
     authorize: "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
     token: "https://login.microsoftonline.com/common/oauth2/v2.0/token",
     profile: "https://graph.microsoft.com/v1.0/me",
-    scopes: "openid email profile offline_access User.Read Mail.Read Mail.Send",
+    scopes:
+      "openid email profile offline_access User.Read Mail.Read Mail.Send OnlineMeetings.ReadWrite",
     clientId: "MICROSOFT_OAUTH_CLIENT_ID",
     clientSecret: "MICROSOFT_OAUTH_CLIENT_SECRET",
   },
@@ -38,7 +39,7 @@ async function env(provider: OAuthProvider) {
   return { ...item, clientId, clientSecret };
 }
 export async function beginMailOAuth(provider: OAuthProvider, request: Request) {
-  await requireUser("settings.manage");
+  await requireUser("campaigns.manage");
   const item = await env(provider);
   const origin = new URL(request.url).origin;
   const state = randomBytes(24).toString("hex");
@@ -60,7 +61,7 @@ export async function beginMailOAuth(provider: OAuthProvider, request: Request) 
   });
 }
 export async function finishMailOAuth(provider: OAuthProvider, request: Request) {
-  await requireUser("settings.manage");
+  const user = await requireUser("campaigns.manage");
   const item = await env(provider);
   const url = new URL(request.url);
   const origin = url.origin;
@@ -113,7 +114,8 @@ export async function finishMailOAuth(provider: OAuthProvider, request: Request)
         from_name: profile.name || null,
         provider: storedProvider,
         last_status: "Connected with OAuth",
-      },
+        created_by: user.id,
+      } as never,
       { onConflict: "from_email" },
     )
     .select()
@@ -128,6 +130,13 @@ export async function finishMailOAuth(provider: OAuthProvider, request: Request)
       oauth_expires_at: new Date(Date.now() + (tokens.expires_in || 3600) * 1000).toISOString(),
     } as never,
     { onConflict: "mailbox_id" },
+  );
+  const { getPool } = await import("./db.server");
+  await getPool().execute(
+    `INSERT INTO mailbox_access (mailbox_id, user_id, can_send, can_manage, is_default, granted_by)
+     VALUES (?, ?, TRUE, TRUE, NOT EXISTS(SELECT 1 FROM mailbox_access x WHERE x.user_id = ?), ?)
+     ON DUPLICATE KEY UPDATE can_send = TRUE, can_manage = TRUE`,
+    [mailbox.id, user.id, user.id, user.id],
   );
   return redirectResult(origin, "connected", provider);
 }

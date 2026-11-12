@@ -28,6 +28,8 @@ CREATE TABLE IF NOT EXISTS mailboxes (
   created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3), UNIQUE KEY mailboxes_from_email_key (from_email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+ALTER TABLE mailboxes ADD COLUMN IF NOT EXISTS created_by CHAR(36) NULL;
+
 CREATE TABLE IF NOT EXISTS mailbox_secrets (
   mailbox_id CHAR(36) PRIMARY KEY, smtp_password TEXT, imap_password TEXT, oauth_access_token TEXT,
   oauth_refresh_token TEXT, oauth_expires_at DATETIME(3), updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
@@ -640,6 +642,50 @@ CREATE TABLE IF NOT EXISTS system_users (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 ALTER TABLE system_users ADD COLUMN IF NOT EXISTS password_hash TEXT NULL;
+
+CREATE TABLE IF NOT EXISTS email_signatures (
+  id CHAR(36) PRIMARY KEY, mailbox_id CHAR(36) NOT NULL, owner_id CHAR(36) NOT NULL,
+  name VARCHAR(160) NOT NULL, signature_type VARCHAR(30) NOT NULL DEFAULT 'html',
+  content_html LONGTEXT NULL, content_text LONGTEXT NULL, image_url VARCHAR(1000) NULL,
+  created_by CHAR(36) NULL, created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  KEY email_signatures_owner (owner_id, mailbox_id),
+  CONSTRAINT email_signatures_mailbox_fk FOREIGN KEY (mailbox_id) REFERENCES mailboxes(id) ON DELETE CASCADE,
+  CONSTRAINT email_signatures_owner_fk FOREIGN KEY (owner_id) REFERENCES system_users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS mailbox_access (
+  mailbox_id CHAR(36) NOT NULL, user_id CHAR(36) NOT NULL,
+  can_send BOOLEAN NOT NULL DEFAULT TRUE, can_manage BOOLEAN NOT NULL DEFAULT FALSE,
+  is_default BOOLEAN NOT NULL DEFAULT FALSE, active_signature_id CHAR(36) NULL,
+  granted_by CHAR(36) NULL, created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (mailbox_id, user_id), KEY mailbox_access_user (user_id, can_send),
+  CONSTRAINT mailbox_access_mailbox_fk FOREIGN KEY (mailbox_id) REFERENCES mailboxes(id) ON DELETE CASCADE,
+  CONSTRAINT mailbox_access_user_fk FOREIGN KEY (user_id) REFERENCES system_users(id) ON DELETE CASCADE,
+  CONSTRAINT mailbox_access_signature_fk FOREIGN KEY (active_signature_id) REFERENCES email_signatures(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS meetings (
+  id CHAR(36) PRIMARY KEY, title VARCHAR(255) NOT NULL, description LONGTEXT NULL,
+  starts_at DATETIME(3) NOT NULL, ends_at DATETIME(3) NOT NULL,
+  timezone VARCHAR(80) NOT NULL DEFAULT 'Africa/Blantyre', provider VARCHAR(40) NOT NULL DEFAULT 'gwero',
+  join_url VARCHAR(1500) NOT NULL, embed_url VARCHAR(1500) NULL, location VARCHAR(500) NULL,
+  attendee_emails LONGTEXT NOT NULL, status VARCHAR(30) NOT NULL DEFAULT 'scheduled',
+  created_by CHAR(36) NOT NULL, created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  KEY meetings_starts (starts_at, status), KEY meetings_creator (created_by, starts_at),
+  CONSTRAINT meetings_creator_fk FOREIGN KEY (created_by) REFERENCES system_users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS meeting_attendees (
+  meeting_id CHAR(36) NOT NULL, user_id CHAR(36) NOT NULL,
+  response_status VARCHAR(30) NOT NULL DEFAULT 'accepted',
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (meeting_id, user_id), KEY meeting_attendees_user (user_id, response_status),
+  CONSTRAINT meeting_attendees_meeting_fk FOREIGN KEY (meeting_id) REFERENCES meetings(id) ON DELETE CASCADE,
+  CONSTRAINT meeting_attendees_user_fk FOREIGN KEY (user_id) REFERENCES system_users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS portal_accounts (
   id CHAR(36) PRIMARY KEY, portal_name VARCHAR(200) NOT NULL,

@@ -33,6 +33,9 @@ import {
 } from "@/components/ui/select";
 import { db } from "@/lib/db";
 import { sendProspectEmail, syncReplies } from "@/lib/crm.functions";
+import { getEmailIdentityWorkspace } from "@/lib/email-identity.functions";
+
+type SendingAccount = { id: string; name: string; from_email: string; is_default: boolean };
 
 export const Route = createFileRoute("/prospects/$id/contacts/$contactId")({
   component: ProspectContactPage,
@@ -89,11 +92,11 @@ function ProspectContactPage() {
       ).data || [],
     refetchInterval: 30_000,
   });
-  const { data: mailboxes = [] } = useQuery({
-    queryKey: ["mailboxes"],
-    queryFn: async () =>
-      (await db.from("mailboxes").select("*").order("is_default", { ascending: false })).data || [],
+  const { data: identity } = useQuery({
+    queryKey: ["email-identity-workspace"],
+    queryFn: () => getEmailIdentityWorkspace() as Promise<{ mailboxes: SendingAccount[] }>,
   });
+  const mailboxes = identity?.mailboxes || [];
   const selectedMailbox = message.mailboxId || mailboxes[0]?.id || "";
 
   useEffect(() => {

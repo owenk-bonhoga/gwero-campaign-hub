@@ -66,6 +66,7 @@ const fields: Record<TableName, string[]> = {
     "is_default",
     "last_sync_at",
     "last_status",
+    "created_by",
     "created_at",
   ],
   mailbox_secrets: [

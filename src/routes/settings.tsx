@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { ConfirmAction } from "@/components/ConfirmAction";
 import { MailboxSettings } from "@/components/settings/MailboxSettings";
+import { EmailSignatureSettings } from "@/components/settings/EmailSignatureSettings";
 import { CurrencySettings } from "@/components/settings/CurrencySettings";
 import {
   Select,
@@ -121,7 +122,7 @@ function SettingsPage() {
         <TabsList className="h-auto w-full justify-start overflow-x-auto bg-white p-1.5">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="email">Email connections</TabsTrigger>
-          <TabsTrigger value="templates">Email templates</TabsTrigger>
+          <TabsTrigger value="templates">Templates & signatures</TabsTrigger>
           <TabsTrigger value="currencies">Currencies</TabsTrigger>
           <TabsTrigger value="ai">AI & Prospecting</TabsTrigger>
           <TabsTrigger value="integrations">Integrations</TabsTrigger>
@@ -669,81 +670,84 @@ function TemplatesTab({
     onError: (e: Error) => toast.error(e.message),
   });
   return (
-    <div className="grid gap-5 lg:grid-cols-[1fr_1.3fr]">
-      <Card>
-        <CardHeader>
-          <CardTitle>Create or replace a template</CardTitle>
-          <CardDescription>
-            Use placeholders such as {"{{first_name}}"}, {"{{company}}"} and {"{{system_name}}"}.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Field
-            label="Template name"
-            value={form.name}
-            onChange={(v) => setForm((o) => ({ ...o, name: v }))}
-          />
-          <Field
-            label="Event key"
-            value={form.event_key}
-            onChange={(v) => setForm((o) => ({ ...o, event_key: v }))}
-            placeholder="campaign.follow_up"
-          />
-          <Field
-            label="Subject"
-            value={form.subject}
-            onChange={(v) => setForm((o) => ({ ...o, subject: v }))}
-          />
-          <div className="space-y-2">
-            <Label>HTML body</Label>
-            <Textarea
-              rows={8}
-              value={form.body_html}
-              onChange={(e) => setForm((o) => ({ ...o, body_html: e.target.value }))}
+    <>
+      <div className="grid gap-5 lg:grid-cols-[1fr_1.3fr]">
+        <Card>
+          <CardHeader>
+            <CardTitle>Create or replace a template</CardTitle>
+            <CardDescription>
+              Use placeholders such as {"{{first_name}}"}, {"{{company}}"} and {"{{system_name}}"}.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Field
+              label="Template name"
+              value={form.name}
+              onChange={(v) => setForm((o) => ({ ...o, name: v }))}
             />
-          </div>
-          <div className="flex items-center gap-3">
-            <Switch
-              checked={form.is_active}
-              onCheckedChange={(v) => setForm((o) => ({ ...o, is_active: v }))}
+            <Field
+              label="Event key"
+              value={form.event_key}
+              onChange={(v) => setForm((o) => ({ ...o, event_key: v }))}
+              placeholder="campaign.follow_up"
             />
-            <Label>Active</Label>
-          </div>
-          <Button
-            onClick={() => save.mutate()}
-            disabled={!form.name || !form.event_key || !form.subject}
-          >
-            Save template
-          </Button>
-        </CardContent>
-      </Card>
-      <div className="space-y-3">
-        {templates.map((t) => (
-          <Card key={t.id}>
-            <CardHeader>
-              <div className="flex justify-between gap-3">
-                <div>
-                  <CardTitle className="text-base">{t.name}</CardTitle>
-                  <CardDescription>
-                    {t.event_key} · {t.subject}
-                  </CardDescription>
+            <Field
+              label="Subject"
+              value={form.subject}
+              onChange={(v) => setForm((o) => ({ ...o, subject: v }))}
+            />
+            <div className="space-y-2">
+              <Label>HTML body</Label>
+              <Textarea
+                rows={8}
+                value={form.body_html}
+                onChange={(e) => setForm((o) => ({ ...o, body_html: e.target.value }))}
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <Switch
+                checked={form.is_active}
+                onCheckedChange={(v) => setForm((o) => ({ ...o, is_active: v }))}
+              />
+              <Label>Active</Label>
+            </div>
+            <Button
+              onClick={() => save.mutate()}
+              disabled={!form.name || !form.event_key || !form.subject}
+            >
+              Save template
+            </Button>
+          </CardContent>
+        </Card>
+        <div className="space-y-3">
+          {templates.map((t) => (
+            <Card key={t.id}>
+              <CardHeader>
+                <div className="flex justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-base">{t.name}</CardTitle>
+                    <CardDescription>
+                      {t.event_key} · {t.subject}
+                    </CardDescription>
+                  </div>
+                  <Badge variant={t.is_active ? "default" : "secondary"}>
+                    {t.is_active ? "Active" : "Off"}
+                  </Badge>
                 </div>
-                <Badge variant={t.is_active ? "default" : "secondary"}>
-                  {t.is_active ? "Active" : "Off"}
-                </Badge>
-              </div>
-            </CardHeader>
-          </Card>
-        ))}
-        {!templates.length ? (
-          <Card>
-            <CardContent className="py-10 text-center text-muted-foreground">
-              No templates created yet.
-            </CardContent>
-          </Card>
-        ) : null}
+              </CardHeader>
+            </Card>
+          ))}
+          {!templates.length ? (
+            <Card>
+              <CardContent className="py-10 text-center text-muted-foreground">
+                No templates created yet.
+              </CardContent>
+            </Card>
+          ) : null}
+        </div>
       </div>
-    </div>
+      <EmailSignatureSettings />
+    </>
   );
 }
 

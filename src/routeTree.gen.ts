@@ -42,6 +42,8 @@ import { Route as CampaignsIndexRouteImport } from './routes/campaigns.index'
 import { Route as CampaignsIdRouteImport } from './routes/campaigns.$id'
 import { Route as ClientsIdRouteImport } from './routes/clients.$id'
 import { Route as CostSheetsIdRouteImport } from './routes/cost-sheets.$id'
+import { Route as MeetingsIndexRouteImport } from './routes/meetings.index'
+import { Route as MeetingsIdRouteImport } from './routes/meetings.$id'
 import { Route as PrequalificationsIdRouteImport } from './routes/prequalifications.$id'
 import { Route as ProspectsIdRouteImport } from './routes/prospects.$id'
 import { Route as QuotationsIdRouteImport } from './routes/quotations.$id'
@@ -225,6 +227,16 @@ const CostSheetsIdRoute = CostSheetsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => CostSheetsRoute,
 } as any)
+const MeetingsIndexRoute = MeetingsIndexRouteImport.update({
+  id: '/meetings/',
+  path: '/meetings/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MeetingsIdRoute = MeetingsIdRouteImport.update({
+  id: '/meetings/$id',
+  path: '/meetings/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PrequalificationsIdRoute = PrequalificationsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -347,12 +359,14 @@ export interface FileRoutesByFullPath {
   '/campaigns/$id': typeof CampaignsIdRoute
   '/clients/$id': typeof ClientsIdRoute
   '/cost-sheets/$id': typeof CostSheetsIdRoute
+  '/meetings/$id': typeof MeetingsIdRoute
   '/prequalifications/$id': typeof PrequalificationsIdRoute
   '/prospects/$id': typeof ProspectsIdRouteWithChildren
   '/quotations/$id': typeof QuotationsIdRoute
   '/rfps/$id': typeof RfpsIdRoute
   '/rfqs/$id': typeof RfqsIdRoute
   '/campaigns/': typeof CampaignsIndexRoute
+  '/meetings/': typeof MeetingsIndexRoute
   '/api/attachments/upload': typeof ApiAttachmentsUploadRoute
   '/api/cron/campaigns': typeof ApiCronCampaignsRoute
   '/api/cron/notifications': typeof ApiCronNotificationsRoute
@@ -399,12 +413,14 @@ export interface FileRoutesByTo {
   '/campaigns/$id': typeof CampaignsIdRoute
   '/clients/$id': typeof ClientsIdRoute
   '/cost-sheets/$id': typeof CostSheetsIdRoute
+  '/meetings/$id': typeof MeetingsIdRoute
   '/prequalifications/$id': typeof PrequalificationsIdRoute
   '/prospects/$id': typeof ProspectsIdRouteWithChildren
   '/quotations/$id': typeof QuotationsIdRoute
   '/rfps/$id': typeof RfpsIdRoute
   '/rfqs/$id': typeof RfqsIdRoute
   '/campaigns': typeof CampaignsIndexRoute
+  '/meetings': typeof MeetingsIndexRoute
   '/api/attachments/upload': typeof ApiAttachmentsUploadRoute
   '/api/cron/campaigns': typeof ApiCronCampaignsRoute
   '/api/cron/notifications': typeof ApiCronNotificationsRoute
@@ -452,12 +468,14 @@ export interface FileRoutesById {
   '/campaigns/$id': typeof CampaignsIdRoute
   '/clients/$id': typeof ClientsIdRoute
   '/cost-sheets/$id': typeof CostSheetsIdRoute
+  '/meetings/$id': typeof MeetingsIdRoute
   '/prequalifications/$id': typeof PrequalificationsIdRoute
   '/prospects/$id': typeof ProspectsIdRouteWithChildren
   '/quotations/$id': typeof QuotationsIdRoute
   '/rfps/$id': typeof RfpsIdRoute
   '/rfqs/$id': typeof RfqsIdRoute
   '/campaigns/': typeof CampaignsIndexRoute
+  '/meetings/': typeof MeetingsIndexRoute
   '/api/attachments/upload': typeof ApiAttachmentsUploadRoute
   '/api/cron/campaigns': typeof ApiCronCampaignsRoute
   '/api/cron/notifications': typeof ApiCronNotificationsRoute
@@ -506,12 +524,14 @@ export interface FileRouteTypes {
     | '/campaigns/$id'
     | '/clients/$id'
     | '/cost-sheets/$id'
+    | '/meetings/$id'
     | '/prequalifications/$id'
     | '/prospects/$id'
     | '/quotations/$id'
     | '/rfps/$id'
     | '/rfqs/$id'
     | '/campaigns/'
+    | '/meetings/'
     | '/api/attachments/upload'
     | '/api/cron/campaigns'
     | '/api/cron/notifications'
@@ -558,12 +578,14 @@ export interface FileRouteTypes {
     | '/campaigns/$id'
     | '/clients/$id'
     | '/cost-sheets/$id'
+    | '/meetings/$id'
     | '/prequalifications/$id'
     | '/prospects/$id'
     | '/quotations/$id'
     | '/rfps/$id'
     | '/rfqs/$id'
     | '/campaigns'
+    | '/meetings'
     | '/api/attachments/upload'
     | '/api/cron/campaigns'
     | '/api/cron/notifications'
@@ -610,12 +632,14 @@ export interface FileRouteTypes {
     | '/campaigns/$id'
     | '/clients/$id'
     | '/cost-sheets/$id'
+    | '/meetings/$id'
     | '/prequalifications/$id'
     | '/prospects/$id'
     | '/quotations/$id'
     | '/rfps/$id'
     | '/rfqs/$id'
     | '/campaigns/'
+    | '/meetings/'
     | '/api/attachments/upload'
     | '/api/cron/campaigns'
     | '/api/cron/notifications'
@@ -660,7 +684,9 @@ export interface RootRouteChildren {
   VendorsRoute: typeof VendorsRoute
   ApiHealthRoute: typeof ApiHealthRoute
   CampaignsIdRoute: typeof CampaignsIdRoute
+  MeetingsIdRoute: typeof MeetingsIdRoute
   CampaignsIndexRoute: typeof CampaignsIndexRoute
+  MeetingsIndexRoute: typeof MeetingsIndexRoute
   ApiAttachmentsUploadRoute: typeof ApiAttachmentsUploadRoute
   ApiCronCampaignsRoute: typeof ApiCronCampaignsRoute
   ApiCronNotificationsRoute: typeof ApiCronNotificationsRoute
@@ -906,6 +932,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/cost-sheets/$id'
       preLoaderRoute: typeof CostSheetsIdRouteImport
       parentRoute: typeof CostSheetsRoute
+    }
+    '/meetings/': {
+      id: '/meetings/'
+      path: '/meetings'
+      fullPath: '/meetings/'
+      preLoaderRoute: typeof MeetingsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/meetings/$id': {
+      id: '/meetings/$id'
+      path: '/meetings/$id'
+      fullPath: '/meetings/$id'
+      preLoaderRoute: typeof MeetingsIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/prequalifications/$id': {
       id: '/prequalifications/$id'
@@ -1159,7 +1199,9 @@ const rootRouteChildren: RootRouteChildren = {
   VendorsRoute: VendorsRoute,
   ApiHealthRoute: ApiHealthRoute,
   CampaignsIdRoute: CampaignsIdRoute,
+  MeetingsIdRoute: MeetingsIdRoute,
   CampaignsIndexRoute: CampaignsIndexRoute,
+  MeetingsIndexRoute: MeetingsIndexRoute,
   ApiAttachmentsUploadRoute: ApiAttachmentsUploadRoute,
   ApiCronCampaignsRoute: ApiCronCampaignsRoute,
   ApiCronNotificationsRoute: ApiCronNotificationsRoute,

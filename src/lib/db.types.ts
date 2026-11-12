@@ -61,6 +61,7 @@ export interface Mailbox {
   is_default: boolean;
   last_sync_at: string | null;
   last_status: string | null;
+  created_by: string | null;
   created_at: string;
 }
 export interface MailboxSecret {
