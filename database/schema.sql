@@ -589,6 +589,103 @@ CREATE TABLE IF NOT EXISTS payments (
   CONSTRAINT payments_invoice_fk FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS finance_accounts (
+  id CHAR(36) PRIMARY KEY, code VARCHAR(20) NOT NULL, name VARCHAR(160) NOT NULL,
+  account_type VARCHAR(30) NOT NULL, normal_balance VARCHAR(10) NOT NULL,
+  description TEXT NULL, is_system BOOLEAN NOT NULL DEFAULT FALSE,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE, created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  UNIQUE KEY finance_accounts_code (code), KEY finance_accounts_type (account_type, is_active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS finance_transactions (
+  id CHAR(36) PRIMARY KEY, transaction_number VARCHAR(80) NOT NULL,
+  transaction_type VARCHAR(20) NOT NULL, status VARCHAR(30) NOT NULL DEFAULT 'draft',
+  transaction_date DATE NOT NULL, due_date DATE NULL, description VARCHAR(500) NOT NULL,
+  counterparty VARCHAR(255) NULL, reference VARCHAR(160) NULL, currency VARCHAR(10) NOT NULL DEFAULT 'MWK',
+  subtotal DECIMAL(18,2) NOT NULL DEFAULT 0, tax_amount DECIMAL(18,2) NOT NULL DEFAULT 0,
+  total_amount DECIMAL(18,2) NOT NULL DEFAULT 0, paid_amount DECIMAL(18,2) NOT NULL DEFAULT 0,
+  payment_status VARCHAR(30) NOT NULL DEFAULT 'unpaid', tax_treatment VARCHAR(30) NOT NULL DEFAULT 'none',
+  tax_rate DECIMAL(8,4) NOT NULL DEFAULT 0, tax_recoverable BOOLEAN NOT NULL DEFAULT FALSE,
+  source_type VARCHAR(30) NULL, source_id CHAR(36) NULL, client_id CHAR(36) NULL,
+  project_id CHAR(36) NULL, notes TEXT NULL, created_by CHAR(36) NOT NULL,
+  approved_by CHAR(36) NULL, approved_at DATETIME(3) NULL, posted_at DATETIME(3) NULL,
+  voided_at DATETIME(3) NULL, void_reason TEXT NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  UNIQUE KEY finance_transactions_number (transaction_number),
+  KEY finance_transactions_date (transaction_date, transaction_type, status),
+  KEY finance_transactions_source (source_type, source_id), KEY finance_transactions_client (client_id),
+  CONSTRAINT finance_transactions_client_fk FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE SET NULL,
+  CONSTRAINT finance_transactions_project_fk FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS finance_transaction_lines (
+  id CHAR(36) PRIMARY KEY, transaction_id CHAR(36) NOT NULL, line_order INT NOT NULL DEFAULT 0,
+  account_id CHAR(36) NOT NULL, description VARCHAR(500) NOT NULL,
+  quantity DECIMAL(14,4) NOT NULL DEFAULT 1, unit_amount DECIMAL(18,4) NOT NULL DEFAULT 0,
+  net_amount DECIMAL(18,2) NOT NULL DEFAULT 0, tax_rate DECIMAL(8,4) NOT NULL DEFAULT 0,
+  tax_amount DECIMAL(18,2) NOT NULL DEFAULT 0, total_amount DECIMAL(18,2) NOT NULL DEFAULT 0,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  KEY finance_transaction_lines_transaction (transaction_id, line_order),
+  CONSTRAINT finance_transaction_lines_transaction_fk FOREIGN KEY (transaction_id) REFERENCES finance_transactions(id) ON DELETE CASCADE,
+  CONSTRAINT finance_transaction_lines_account_fk FOREIGN KEY (account_id) REFERENCES finance_accounts(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS finance_journal_entries (
+  id CHAR(36) PRIMARY KEY, journal_number VARCHAR(80) NOT NULL, transaction_id CHAR(36) NULL,
+  entry_date DATE NOT NULL, description VARCHAR(500) NOT NULL, status VARCHAR(20) NOT NULL DEFAULT 'posted',
+  reversal_of CHAR(36) NULL, posted_by CHAR(36) NOT NULL, posted_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  UNIQUE KEY finance_journal_number (journal_number), KEY finance_journal_transaction (transaction_id),
+  CONSTRAINT finance_journal_transaction_fk FOREIGN KEY (transaction_id) REFERENCES finance_transactions(id) ON DELETE SET NULL,
+  CONSTRAINT finance_journal_reversal_fk FOREIGN KEY (reversal_of) REFERENCES finance_journal_entries(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS finance_journal_lines (
+  id CHAR(36) PRIMARY KEY, journal_entry_id CHAR(36) NOT NULL, account_id CHAR(36) NOT NULL,
+  description VARCHAR(500) NULL, debit DECIMAL(18,2) NOT NULL DEFAULT 0,
+  credit DECIMAL(18,2) NOT NULL DEFAULT 0, currency VARCHAR(10) NOT NULL DEFAULT 'MWK',
+  source_type VARCHAR(30) NULL, source_id CHAR(36) NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  KEY finance_journal_lines_entry (journal_entry_id), KEY finance_journal_lines_account (account_id),
+  CONSTRAINT finance_journal_lines_entry_fk FOREIGN KEY (journal_entry_id) REFERENCES finance_journal_entries(id) ON DELETE CASCADE,
+  CONSTRAINT finance_journal_lines_account_fk FOREIGN KEY (account_id) REFERENCES finance_accounts(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS finance_transaction_attachments (
+  id CHAR(36) PRIMARY KEY, transaction_id CHAR(36) NOT NULL, attachment_path VARCHAR(1000) NOT NULL,
+  file_name VARCHAR(500) NOT NULL, content_type VARCHAR(255) NOT NULL, file_size INT UNSIGNED NOT NULL,
+  created_by CHAR(36) NOT NULL, created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  KEY finance_attachments_transaction (transaction_id),
+  CONSTRAINT finance_attachments_transaction_fk FOREIGN KEY (transaction_id) REFERENCES finance_transactions(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS finance_transaction_payments (
+  id CHAR(36) PRIMARY KEY, transaction_id CHAR(36) NOT NULL, payment_date DATE NOT NULL,
+  amount DECIMAL(18,2) NOT NULL, method VARCHAR(60) NULL, reference VARCHAR(160) NULL,
+  cash_account_id CHAR(36) NOT NULL, notes TEXT NULL, created_by CHAR(36) NOT NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  KEY finance_payments_transaction (transaction_id, payment_date),
+  CONSTRAINT finance_payments_transaction_fk FOREIGN KEY (transaction_id) REFERENCES finance_transactions(id) ON DELETE CASCADE,
+  CONSTRAINT finance_payments_cash_account_fk FOREIGN KEY (cash_account_id) REFERENCES finance_accounts(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT IGNORE INTO finance_accounts (id, code, name, account_type, normal_balance, description, is_system) VALUES
+  (UUID(), '1000', 'Cash and bank', 'asset', 'debit', 'Cash and bank balances', TRUE),
+  (UUID(), '1100', 'Accounts receivable', 'asset', 'debit', 'Amounts due from customers', TRUE),
+  (UUID(), '1150', 'Input VAT recoverable', 'asset', 'debit', 'Recoverable VAT on purchases', TRUE),
+  (UUID(), '2000', 'Accounts payable', 'liability', 'credit', 'Amounts due to suppliers', TRUE),
+  (UUID(), '2100', 'Output VAT payable', 'liability', 'credit', 'VAT collected on taxable sales', TRUE),
+  (UUID(), '4000', 'Sales revenue', 'revenue', 'credit', 'Revenue from goods supplied', TRUE),
+  (UUID(), '4010', 'Service revenue', 'revenue', 'credit', 'Revenue from services delivered', TRUE),
+  (UUID(), '5000', 'Direct materials and supplies', 'expense', 'debit', 'Materials consumed directly on work', TRUE),
+  (UUID(), '5010', 'Tender and bid costs', 'expense', 'debit', 'Direct costs of pursuing opportunities', TRUE),
+  (UUID(), '5020', 'Printing and stationery', 'expense', 'debit', 'Printing, copying and stationery', TRUE),
+  (UUID(), '5030', 'Transport and delivery', 'expense', 'debit', 'Transport, courier and delivery costs', TRUE),
+  (UUID(), '5040', 'Outsourced services', 'expense', 'debit', 'Third-party services and subcontracting', TRUE),
+  (UUID(), '6000', 'General and administrative expenses', 'expense', 'debit', 'General operating overhead', TRUE),
+  (UUID(), '6100', 'Bank charges', 'expense', 'debit', 'Bank and payment processing fees', TRUE);
+
 CREATE TABLE IF NOT EXISTS system_settings (
   id CHAR(36) PRIMARY KEY, setting_key VARCHAR(120) NOT NULL, setting_group VARCHAR(60) NOT NULL,
   setting_value LONGTEXT, created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),

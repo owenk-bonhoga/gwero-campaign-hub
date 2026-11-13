@@ -24,8 +24,8 @@ export async function requireAttachmentAccess(ownerId: string, allowNew = false)
     throw new Error("Permission denied");
   }
   const [rows] = await getPool().execute(
-    "SELECT 'campaigns.manage' AS permission FROM campaigns WHERE id = ? UNION ALL SELECT 'prospects.manage' FROM prospect_contacts WHERE id = ? UNION ALL SELECT 'opportunities.manage' FROM bids WHERE id = ? UNION ALL SELECT 'opportunities.manage' FROM requests WHERE id = ? UNION ALL SELECT 'opportunities.manage' FROM prequalifications WHERE id = ?",
-    [ownerId, ownerId, ownerId, ownerId, ownerId],
+    "SELECT 'campaigns.manage' AS permission FROM campaigns WHERE id = ? UNION ALL SELECT 'prospects.manage' FROM prospect_contacts WHERE id = ? UNION ALL SELECT 'opportunities.manage' FROM bids WHERE id = ? UNION ALL SELECT 'opportunities.manage' FROM requests WHERE id = ? UNION ALL SELECT 'opportunities.manage' FROM prequalifications WHERE id = ? UNION ALL SELECT 'finance.manage' FROM finance_transactions WHERE id = ?",
+    [ownerId, ownerId, ownerId, ownerId, ownerId, ownerId],
   );
   const permissions = (rows as Array<{ permission: string }>).map((row) => row.permission);
   if (
@@ -50,9 +50,13 @@ export async function requireAttachmentAccess(ownerId: string, allowNew = false)
     if (
       allowNew &&
       !owner &&
-      ["campaigns.manage", "prospects.manage", "opportunities.manage", "documents.manage"].some(
-        (permission) => user.permissions.includes(permission),
-      )
+      [
+        "campaigns.manage",
+        "prospects.manage",
+        "opportunities.manage",
+        "documents.manage",
+        "finance.manage",
+      ].some((permission) => user.permissions.includes(permission))
     )
       return user;
   }

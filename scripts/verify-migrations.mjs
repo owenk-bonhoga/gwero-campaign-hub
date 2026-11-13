@@ -33,6 +33,13 @@ const requiredTables = [
   "schema_migrations",
   "security_login_limits",
   "supplier_quotes",
+  "finance_accounts",
+  "finance_transactions",
+  "finance_transaction_lines",
+  "finance_journal_entries",
+  "finance_journal_lines",
+  "finance_transaction_attachments",
+  "finance_transaction_payments",
 ];
 
 const requiredColumns = [
@@ -44,6 +51,9 @@ const requiredColumns = [
   ["cost_sheet_items", "attachments"],
   ["cost_sheet_items", "custom_values"],
   ["prospect_contacts", "location"],
+  ["finance_transactions", "source_type"],
+  ["finance_transactions", "tax_treatment"],
+  ["finance_transactions", "payment_status"],
 ];
 
 try {
