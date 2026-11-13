@@ -19,6 +19,7 @@ import { AppShell } from "@/components/AppShell";
 import { ConfirmAction } from "@/components/ConfirmAction";
 import { DocumentMergeDialog, type MergeCandidate } from "@/components/DocumentMergeDialog";
 import { EmailMessageContent } from "@/components/EmailMessageContent";
+import { FinanceWorkspace } from "@/components/FinanceWorkspace";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -190,6 +191,7 @@ export function OpportunityWorkspace({ kind, id }: { kind: OpportunityKind; id: 
           <TabsTrigger value="requirements">Requirements</TabsTrigger>
           <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="costing">Cost sheet</TabsTrigger>
+          <TabsTrigger value="finance">Finance</TabsTrigger>
           <TabsTrigger value="collaboration">Team collaboration</TabsTrigger>
           <TabsTrigger value="submission">Submission</TabsTrigger>
           <TabsTrigger value="details">Details</TabsTrigger>
@@ -219,6 +221,14 @@ export function OpportunityWorkspace({ kind, id }: { kind: OpportunityKind; id: 
             kind={kind}
             id={id}
             refresh={refresh}
+          />
+        </TabsContent>
+        <TabsContent value="finance">
+          <FinanceWorkspace
+            sourceType={kind}
+            sourceId={id}
+            sourceTitle={String(opportunity["title"])}
+            compact
           />
         </TabsContent>
         <TabsContent value="collaboration">
