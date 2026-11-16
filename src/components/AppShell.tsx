@@ -35,6 +35,7 @@ import {
   LogOut,
   ChevronDown,
   CalendarDays,
+  Share2,
 } from "lucide-react";
 import { db } from "@/lib/db";
 import { getAuthStatus, logout } from "@/lib/auth.functions";
@@ -112,6 +113,7 @@ const navGroups = [
     label: "Business",
     items: [
       nav("/documents", "Documents", Files),
+      nav("/secure-shares", "Secure sharing", Share2),
       nav("/document-tools", "Stamps & signatures", Stamp),
       nav("/accounts", "Portal accounts", KeyRound),
       nav("/finance", "Finance & Accounts", Receipt),

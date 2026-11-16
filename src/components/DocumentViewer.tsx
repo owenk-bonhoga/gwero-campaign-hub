@@ -18,7 +18,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-type PreviewTarget = { url: string; name?: string };
+type PreviewTarget = { url: string; name?: string; allowDownload?: boolean };
 type Metadata = { name: string; type: string; size: number };
 type PreviewData =
   | { kind: "frame"; url: string }
@@ -231,13 +231,16 @@ export function GlobalDocumentViewer() {
     const onClick = (event: MouseEvent) => {
       if (event.defaultPrevented || event.button !== 0) return;
       const element = event.target instanceof Element ? event.target : null;
-      const anchor = element?.closest<HTMLAnchorElement>('a[href*="/api/attachments/"]');
+      const anchor = element?.closest<HTMLAnchorElement>(
+        'a[href*="/api/attachments/"],a[href*="/api/secure-share/document/"]',
+      );
       if (!anchor || anchor.dataset["documentDownload"] === "true") return;
       event.preventDefault();
       const name = anchor.download || "";
       setTarget({
         url: anchor.getAttribute("href") || anchor.href,
         ...(name ? { name } : {}),
+        allowDownload: anchor.dataset["documentDownloadDisabled"] !== "true",
       });
     };
     document.addEventListener("click", onClick, true);
@@ -319,15 +322,17 @@ export function GlobalDocumentViewer() {
                       <FileSignature className="mr-2 size-4" /> Stamp or sign
                     </Button>
                   ) : null}
-                  <Button asChild size="sm" variant="outline">
-                    <a
-                      href={target.url}
-                      data-document-download="true"
-                      download={metadata?.name || target.name}
-                    >
-                      <Download className="mr-2 size-4" /> Download
-                    </a>
-                  </Button>
+                  {target.allowDownload !== false ? (
+                    <Button asChild size="sm" variant="outline">
+                      <a
+                        href={withQuery(target.url, "download", "1")}
+                        data-document-download="true"
+                        download={metadata?.name || target.name}
+                      >
+                        <Download className="mr-2 size-4" /> Download
+                      </a>
+                    </Button>
+                  ) : null}
                 </div>
               ) : null}
             </div>

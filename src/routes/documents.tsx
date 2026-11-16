@@ -18,6 +18,7 @@ import {
   Upload,
   UserRoundCog,
   UsersRound,
+  Share2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
@@ -754,6 +755,13 @@ function DocumentDetail({
             This legacy record has no managed file version yet. Upload one from the Versions tab.
           </div>
         )}
+        {latest && canManage ? (
+          <Button className="mt-3 w-full" variant="outline" asChild>
+            <a href={`/secure-shares?document=${encodeURIComponent(document.id)}`}>
+              <Share2 className="mr-2 size-4" /> Share securely
+            </a>
+          </Button>
+        ) : null}
         <Tabs defaultValue="details" className="mt-4">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="details">Details</TabsTrigger>

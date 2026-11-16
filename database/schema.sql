@@ -833,6 +833,71 @@ CREATE TABLE IF NOT EXISTS document_access (
   CONSTRAINT document_access_granter_fk FOREIGN KEY (granted_by) REFERENCES system_users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS secure_document_shares (
+  id CHAR(36) PRIMARY KEY, title VARCHAR(200) NOT NULL, description TEXT,
+  slug VARCHAR(180) NOT NULL, status VARCHAR(30) NOT NULL DEFAULT 'active',
+  expires_at DATETIME(3) NULL, mailbox_id CHAR(36) NOT NULL, email_subject VARCHAR(255) NOT NULL,
+  email_message TEXT NULL, created_by CHAR(36) NOT NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  UNIQUE KEY secure_document_shares_slug (slug),
+  KEY secure_document_shares_owner (created_by, status, expires_at),
+  CONSTRAINT secure_document_shares_mailbox_fk FOREIGN KEY (mailbox_id) REFERENCES mailboxes(id),
+  CONSTRAINT secure_document_shares_creator_fk FOREIGN KEY (created_by) REFERENCES system_users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS secure_document_share_items (
+  id CHAR(36) PRIMARY KEY, share_id CHAR(36) NOT NULL, document_id CHAR(36) NOT NULL,
+  version_id CHAR(36) NOT NULL, display_order INT NOT NULL DEFAULT 0,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  UNIQUE KEY secure_share_item_document (share_id, document_id),
+  KEY secure_share_items_version (version_id),
+  CONSTRAINT secure_share_items_share_fk FOREIGN KEY (share_id) REFERENCES secure_document_shares(id) ON DELETE CASCADE,
+  CONSTRAINT secure_share_items_document_fk FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE,
+  CONSTRAINT secure_share_items_version_fk FOREIGN KEY (version_id) REFERENCES document_versions(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS secure_document_share_recipients (
+  id CHAR(36) PRIMARY KEY, share_id CHAR(36) NOT NULL, name VARCHAR(200) NOT NULL,
+  email VARCHAR(320) NOT NULL, message TEXT NULL, access_token_hash CHAR(64) NOT NULL,
+  allow_download BOOLEAN NOT NULL DEFAULT FALSE, invited_at DATETIME(3) NULL,
+  last_seen_at DATETIME(3) NULL, revoked_at DATETIME(3) NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  UNIQUE KEY secure_share_recipient_email (share_id, email),
+  UNIQUE KEY secure_share_recipient_token (access_token_hash),
+  KEY secure_share_recipient_status (share_id, revoked_at, last_seen_at),
+  CONSTRAINT secure_share_recipient_share_fk FOREIGN KEY (share_id) REFERENCES secure_document_shares(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS secure_document_share_sessions (
+  token_hash CHAR(64) PRIMARY KEY, recipient_id CHAR(36) NOT NULL,
+  verified_at DATETIME(3) NULL, expires_at DATETIME(3) NOT NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  KEY secure_share_sessions_recipient (recipient_id, expires_at),
+  CONSTRAINT secure_share_sessions_recipient_fk FOREIGN KEY (recipient_id) REFERENCES secure_document_share_recipients(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS secure_document_share_otps (
+  id CHAR(36) PRIMARY KEY, recipient_id CHAR(36) NOT NULL, session_hash CHAR(64) NOT NULL,
+  code_hash CHAR(64) NOT NULL, expires_at DATETIME(3) NOT NULL,
+  consumed_at DATETIME(3) NULL, attempts INT NOT NULL DEFAULT 0,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  KEY secure_share_otps_recipient (recipient_id, created_at),
+  CONSTRAINT secure_share_otps_recipient_fk FOREIGN KEY (recipient_id) REFERENCES secure_document_share_recipients(id) ON DELETE CASCADE,
+  CONSTRAINT secure_share_otps_session_fk FOREIGN KEY (session_hash) REFERENCES secure_document_share_sessions(token_hash) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS secure_document_share_events (
+  id CHAR(36) PRIMARY KEY, share_id CHAR(36) NOT NULL, recipient_id CHAR(36) NULL,
+  item_id CHAR(36) NULL, event_type VARCHAR(40) NOT NULL, detail VARCHAR(500) NULL,
+  ip_hash CHAR(64) NULL, created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  KEY secure_share_events_share (share_id, created_at),
+  KEY secure_share_events_recipient (recipient_id, created_at),
+  CONSTRAINT secure_share_events_share_fk FOREIGN KEY (share_id) REFERENCES secure_document_shares(id) ON DELETE CASCADE,
+  CONSTRAINT secure_share_events_recipient_fk FOREIGN KEY (recipient_id) REFERENCES secure_document_share_recipients(id) ON DELETE SET NULL,
+  CONSTRAINT secure_share_events_item_fk FOREIGN KEY (item_id) REFERENCES secure_document_share_items(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS document_marks (
   id CHAR(36) PRIMARY KEY, name VARCHAR(160) NOT NULL,
   mark_type VARCHAR(20) NOT NULL, design_json LONGTEXT,
