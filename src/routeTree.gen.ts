@@ -33,6 +33,7 @@ import { Route as QuotationsRouteImport } from './routes/quotations'
 import { Route as RecruitmentRouteImport } from './routes/recruitment'
 import { Route as RfpsRouteImport } from './routes/rfps'
 import { Route as RfqsRouteImport } from './routes/rfqs'
+import { Route as SecureSharesRouteImport } from './routes/secure-shares'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as VendorsRouteImport } from './routes/vendors'
@@ -49,6 +50,7 @@ import { Route as ProspectsIdRouteImport } from './routes/prospects.$id'
 import { Route as QuotationsIdRouteImport } from './routes/quotations.$id'
 import { Route as RfpsIdRouteImport } from './routes/rfps.$id'
 import { Route as RfqsIdRouteImport } from './routes/rfqs.$id'
+import { Route as SSlugRouteImport } from './routes/s/$slug'
 import { Route as ApiAttachmentsUploadRouteImport } from './routes/api/attachments/upload'
 import { Route as ApiCronCampaignsRouteImport } from './routes/api/cron/campaigns'
 import { Route as ApiCronNotificationsRouteImport } from './routes/api/cron/notifications'
@@ -60,6 +62,7 @@ import { Route as ApiOauthMicrosoftCallbackRouteImport } from './routes/api/oaut
 import { Route as ApiOauthMicrosoftStartRouteImport } from './routes/api/oauth/microsoft/start'
 import { Route as ApiPublicTClickRouteImport } from './routes/api/public/t/click'
 import { Route as ApiPublicTOpenRouteImport } from './routes/api/public/t/open'
+import { Route as ApiSecureShareDocumentItemIdRouteImport } from './routes/api/secure-share/document/$itemId'
 import { Route as ProspectsIdContactsContactIdRouteImport } from './routes/prospects.$id.contacts.$contactId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -182,6 +185,11 @@ const RfqsRoute = RfqsRouteImport.update({
   path: '/rfqs',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SecureSharesRoute = SecureSharesRouteImport.update({
+  id: '/secure-shares',
+  path: '/secure-shares',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -262,6 +270,11 @@ const RfqsIdRoute = RfqsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => RfqsRoute,
 } as any)
+const SSlugRoute = SSlugRouteImport.update({
+  id: '/s/$slug',
+  path: '/s/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAttachmentsUploadRoute = ApiAttachmentsUploadRouteImport.update({
   id: '/api/attachments/upload',
   path: '/api/attachments/upload',
@@ -319,6 +332,12 @@ const ApiPublicTOpenRoute = ApiPublicTOpenRouteImport.update({
   path: '/api/public/t/open',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSecureShareDocumentItemIdRoute =
+  ApiSecureShareDocumentItemIdRouteImport.update({
+    id: '/api/secure-share/document/$itemId',
+    path: '/api/secure-share/document/$itemId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ProspectsIdContactsContactIdRoute =
   ProspectsIdContactsContactIdRouteImport.update({
     id: '/contacts/$contactId',
@@ -351,6 +370,7 @@ export interface FileRoutesByFullPath {
   '/recruitment': typeof RecruitmentRoute
   '/rfps': typeof RfpsRouteWithChildren
   '/rfqs': typeof RfqsRouteWithChildren
+  '/secure-shares': typeof SecureSharesRoute
   '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
   '/vendors': typeof VendorsRoute
@@ -365,6 +385,7 @@ export interface FileRoutesByFullPath {
   '/quotations/$id': typeof QuotationsIdRoute
   '/rfps/$id': typeof RfpsIdRoute
   '/rfqs/$id': typeof RfqsIdRoute
+  '/s/$slug': typeof SSlugRoute
   '/campaigns/': typeof CampaignsIndexRoute
   '/meetings/': typeof MeetingsIndexRoute
   '/api/attachments/upload': typeof ApiAttachmentsUploadRoute
@@ -378,6 +399,7 @@ export interface FileRoutesByFullPath {
   '/api/oauth/microsoft/start': typeof ApiOauthMicrosoftStartRoute
   '/api/public/t/click': typeof ApiPublicTClickRoute
   '/api/public/t/open': typeof ApiPublicTOpenRoute
+  '/api/secure-share/document/$itemId': typeof ApiSecureShareDocumentItemIdRoute
   '/prospects/$id/contacts/$contactId': typeof ProspectsIdContactsContactIdRoute
 }
 export interface FileRoutesByTo {
@@ -405,6 +427,7 @@ export interface FileRoutesByTo {
   '/recruitment': typeof RecruitmentRoute
   '/rfps': typeof RfpsRouteWithChildren
   '/rfqs': typeof RfqsRouteWithChildren
+  '/secure-shares': typeof SecureSharesRoute
   '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
   '/vendors': typeof VendorsRoute
@@ -419,6 +442,7 @@ export interface FileRoutesByTo {
   '/quotations/$id': typeof QuotationsIdRoute
   '/rfps/$id': typeof RfpsIdRoute
   '/rfqs/$id': typeof RfqsIdRoute
+  '/s/$slug': typeof SSlugRoute
   '/campaigns': typeof CampaignsIndexRoute
   '/meetings': typeof MeetingsIndexRoute
   '/api/attachments/upload': typeof ApiAttachmentsUploadRoute
@@ -432,6 +456,7 @@ export interface FileRoutesByTo {
   '/api/oauth/microsoft/start': typeof ApiOauthMicrosoftStartRoute
   '/api/public/t/click': typeof ApiPublicTClickRoute
   '/api/public/t/open': typeof ApiPublicTOpenRoute
+  '/api/secure-share/document/$itemId': typeof ApiSecureShareDocumentItemIdRoute
   '/prospects/$id/contacts/$contactId': typeof ProspectsIdContactsContactIdRoute
 }
 export interface FileRoutesById {
@@ -460,6 +485,7 @@ export interface FileRoutesById {
   '/recruitment': typeof RecruitmentRoute
   '/rfps': typeof RfpsRouteWithChildren
   '/rfqs': typeof RfqsRouteWithChildren
+  '/secure-shares': typeof SecureSharesRoute
   '/settings': typeof SettingsRoute
   '/tasks': typeof TasksRoute
   '/vendors': typeof VendorsRoute
@@ -474,6 +500,7 @@ export interface FileRoutesById {
   '/quotations/$id': typeof QuotationsIdRoute
   '/rfps/$id': typeof RfpsIdRoute
   '/rfqs/$id': typeof RfqsIdRoute
+  '/s/$slug': typeof SSlugRoute
   '/campaigns/': typeof CampaignsIndexRoute
   '/meetings/': typeof MeetingsIndexRoute
   '/api/attachments/upload': typeof ApiAttachmentsUploadRoute
@@ -487,6 +514,7 @@ export interface FileRoutesById {
   '/api/oauth/microsoft/start': typeof ApiOauthMicrosoftStartRoute
   '/api/public/t/click': typeof ApiPublicTClickRoute
   '/api/public/t/open': typeof ApiPublicTOpenRoute
+  '/api/secure-share/document/$itemId': typeof ApiSecureShareDocumentItemIdRoute
   '/prospects/$id/contacts/$contactId': typeof ProspectsIdContactsContactIdRoute
 }
 export interface FileRouteTypes {
@@ -516,6 +544,7 @@ export interface FileRouteTypes {
     | '/recruitment'
     | '/rfps'
     | '/rfqs'
+    | '/secure-shares'
     | '/settings'
     | '/tasks'
     | '/vendors'
@@ -530,6 +559,7 @@ export interface FileRouteTypes {
     | '/quotations/$id'
     | '/rfps/$id'
     | '/rfqs/$id'
+    | '/s/$slug'
     | '/campaigns/'
     | '/meetings/'
     | '/api/attachments/upload'
@@ -543,6 +573,7 @@ export interface FileRouteTypes {
     | '/api/oauth/microsoft/start'
     | '/api/public/t/click'
     | '/api/public/t/open'
+    | '/api/secure-share/document/$itemId'
     | '/prospects/$id/contacts/$contactId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -570,6 +601,7 @@ export interface FileRouteTypes {
     | '/recruitment'
     | '/rfps'
     | '/rfqs'
+    | '/secure-shares'
     | '/settings'
     | '/tasks'
     | '/vendors'
@@ -584,6 +616,7 @@ export interface FileRouteTypes {
     | '/quotations/$id'
     | '/rfps/$id'
     | '/rfqs/$id'
+    | '/s/$slug'
     | '/campaigns'
     | '/meetings'
     | '/api/attachments/upload'
@@ -597,6 +630,7 @@ export interface FileRouteTypes {
     | '/api/oauth/microsoft/start'
     | '/api/public/t/click'
     | '/api/public/t/open'
+    | '/api/secure-share/document/$itemId'
     | '/prospects/$id/contacts/$contactId'
   id:
     | '__root__'
@@ -624,6 +658,7 @@ export interface FileRouteTypes {
     | '/recruitment'
     | '/rfps'
     | '/rfqs'
+    | '/secure-shares'
     | '/settings'
     | '/tasks'
     | '/vendors'
@@ -638,6 +673,7 @@ export interface FileRouteTypes {
     | '/quotations/$id'
     | '/rfps/$id'
     | '/rfqs/$id'
+    | '/s/$slug'
     | '/campaigns/'
     | '/meetings/'
     | '/api/attachments/upload'
@@ -651,6 +687,7 @@ export interface FileRouteTypes {
     | '/api/oauth/microsoft/start'
     | '/api/public/t/click'
     | '/api/public/t/open'
+    | '/api/secure-share/document/$itemId'
     | '/prospects/$id/contacts/$contactId'
   fileRoutesById: FileRoutesById
 }
@@ -679,12 +716,14 @@ export interface RootRouteChildren {
   RecruitmentRoute: typeof RecruitmentRoute
   RfpsRoute: typeof RfpsRouteWithChildren
   RfqsRoute: typeof RfqsRouteWithChildren
+  SecureSharesRoute: typeof SecureSharesRoute
   SettingsRoute: typeof SettingsRoute
   TasksRoute: typeof TasksRoute
   VendorsRoute: typeof VendorsRoute
   ApiHealthRoute: typeof ApiHealthRoute
   CampaignsIdRoute: typeof CampaignsIdRoute
   MeetingsIdRoute: typeof MeetingsIdRoute
+  SSlugRoute: typeof SSlugRoute
   CampaignsIndexRoute: typeof CampaignsIndexRoute
   MeetingsIndexRoute: typeof MeetingsIndexRoute
   ApiAttachmentsUploadRoute: typeof ApiAttachmentsUploadRoute
@@ -698,6 +737,7 @@ export interface RootRouteChildren {
   ApiOauthMicrosoftStartRoute: typeof ApiOauthMicrosoftStartRoute
   ApiPublicTClickRoute: typeof ApiPublicTClickRoute
   ApiPublicTOpenRoute: typeof ApiPublicTOpenRoute
+  ApiSecureShareDocumentItemIdRoute: typeof ApiSecureShareDocumentItemIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -870,6 +910,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RfqsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/secure-shares': {
+      id: '/secure-shares'
+      path: '/secure-shares'
+      fullPath: '/secure-shares'
+      preLoaderRoute: typeof SecureSharesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -982,6 +1029,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RfqsIdRouteImport
       parentRoute: typeof RfqsRoute
     }
+    '/s/$slug': {
+      id: '/s/$slug'
+      path: '/s/$slug'
+      fullPath: '/s/$slug'
+      preLoaderRoute: typeof SSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/attachments/upload': {
       id: '/api/attachments/upload'
       path: '/api/attachments/upload'
@@ -1057,6 +1111,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/t/open'
       fullPath: '/api/public/t/open'
       preLoaderRoute: typeof ApiPublicTOpenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/secure-share/document/$itemId': {
+      id: '/api/secure-share/document/$itemId'
+      path: '/api/secure-share/document/$itemId'
+      fullPath: '/api/secure-share/document/$itemId'
+      preLoaderRoute: typeof ApiSecureShareDocumentItemIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/prospects/$id/contacts/$contactId': {
@@ -1194,12 +1255,14 @@ const rootRouteChildren: RootRouteChildren = {
   RecruitmentRoute: RecruitmentRoute,
   RfpsRoute: RfpsRouteWithChildren,
   RfqsRoute: RfqsRouteWithChildren,
+  SecureSharesRoute: SecureSharesRoute,
   SettingsRoute: SettingsRoute,
   TasksRoute: TasksRoute,
   VendorsRoute: VendorsRoute,
   ApiHealthRoute: ApiHealthRoute,
   CampaignsIdRoute: CampaignsIdRoute,
   MeetingsIdRoute: MeetingsIdRoute,
+  SSlugRoute: SSlugRoute,
   CampaignsIndexRoute: CampaignsIndexRoute,
   MeetingsIndexRoute: MeetingsIndexRoute,
   ApiAttachmentsUploadRoute: ApiAttachmentsUploadRoute,
@@ -1213,6 +1276,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiOauthMicrosoftStartRoute: ApiOauthMicrosoftStartRoute,
   ApiPublicTClickRoute: ApiPublicTClickRoute,
   ApiPublicTOpenRoute: ApiPublicTOpenRoute,
+  ApiSecureShareDocumentItemIdRoute: ApiSecureShareDocumentItemIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
