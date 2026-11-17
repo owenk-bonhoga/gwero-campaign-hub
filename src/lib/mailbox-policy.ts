@@ -17,3 +17,7 @@ export function shouldRequireEmailSetup(ownedSendingAccountCount: number) {
 export function canDeleteOwnedMailbox(ownedAccountCount: number) {
   return ownedAccountCount > 1;
 }
+
+export function mayResumeMailboxSetup(existingOwnerId: string | null, currentUserId: string) {
+  return Boolean(existingOwnerId) && existingOwnerId === currentUserId;
+}
