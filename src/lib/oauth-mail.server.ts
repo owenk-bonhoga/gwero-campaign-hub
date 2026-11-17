@@ -169,6 +169,10 @@ export async function finishMailOAuth(provider: OAuthProvider, request: Request)
      ON DUPLICATE KEY UPDATE can_send = TRUE, can_manage = TRUE`,
     [mailboxId, user.id, user.id, user.id],
   );
+  await db.execute(
+    "UPDATE secure_document_shares SET mailbox_id = ? WHERE mailbox_id IS NULL AND created_by = ?",
+    [mailboxId, user.id],
+  );
   return redirectResult(origin, "connected", provider);
 }
 function redirectResult(origin: string, key: string, value: string) {
