@@ -123,7 +123,8 @@ export const testMailbox = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { getPool } = await import("./db.server");
     const { requireMailboxAccess } = await import("./email-identity.server");
-    await requireMailboxAccess(getPool(), data.mailboxId, context.user, true);
+    const pool = getPool();
+    await requireMailboxAccess(pool, data.mailboxId, context.user, true);
     const db = await admin();
     const { data: mailbox, error } = await db
       .from("mailboxes")
@@ -178,6 +179,10 @@ export const testMailbox = createServerFn({ method: "POST" })
       .from("mailboxes")
       .update({ last_status: results.join(" · ") })
       .eq("id", mailbox.id);
+    await pool.execute(
+      "UPDATE secure_document_shares SET mailbox_id = ? WHERE mailbox_id IS NULL AND created_by = ?",
+      [mailbox.id, context.user.id],
+    );
     return { ok: true, message: results.join(" · ") };
   });
 

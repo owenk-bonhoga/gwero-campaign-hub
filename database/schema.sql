@@ -836,13 +836,13 @@ CREATE TABLE IF NOT EXISTS document_access (
 CREATE TABLE IF NOT EXISTS secure_document_shares (
   id CHAR(36) PRIMARY KEY, title VARCHAR(200) NOT NULL, description TEXT,
   slug VARCHAR(180) NOT NULL, status VARCHAR(30) NOT NULL DEFAULT 'active',
-  expires_at DATETIME(3) NULL, mailbox_id CHAR(36) NOT NULL, email_subject VARCHAR(255) NOT NULL,
+  expires_at DATETIME(3) NULL, mailbox_id CHAR(36) NULL, email_subject VARCHAR(255) NOT NULL,
   email_message TEXT NULL, created_by CHAR(36) NOT NULL,
   created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   UNIQUE KEY secure_document_shares_slug (slug),
   KEY secure_document_shares_owner (created_by, status, expires_at),
-  CONSTRAINT secure_document_shares_mailbox_fk FOREIGN KEY (mailbox_id) REFERENCES mailboxes(id),
+  CONSTRAINT secure_document_shares_mailbox_fk FOREIGN KEY (mailbox_id) REFERENCES mailboxes(id) ON DELETE SET NULL,
   CONSTRAINT secure_document_shares_creator_fk FOREIGN KEY (created_by) REFERENCES system_users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
