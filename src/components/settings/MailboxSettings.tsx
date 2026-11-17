@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Mail, Pencil, Plus, Send, Share2, Trash2, Wifi } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmAction } from "@/components/ConfirmAction";
+import { MailProviderLogo } from "@/components/settings/MailProviderLogo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -398,20 +399,29 @@ export function MailboxSettings({ setupRequired = false }: { setupRequired?: boo
                       key={provider.id}
                       type="button"
                       onClick={() => chooseProvider(provider.id)}
-                      className="rounded-xl border p-4 text-left transition hover:border-primary hover:bg-primary/5"
+                      className="flex items-start gap-3 rounded-xl border p-4 text-left transition hover:border-primary hover:bg-primary/5"
                     >
-                      <p className="font-semibold">{provider.label}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">{provider.description}</p>
-                      {unavailable ? (
-                        <p className="mt-2 text-xs font-medium text-amber-700">
-                          OAuth is not configured. Continue with an app password, or configure OAuth
-                          in Settings → Integrations.
-                        </p>
-                      ) : null}
+                      <MailProviderLogo providerId={provider.id} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-semibold">{provider.label}</span>
+                        <span className="mt-1 block text-xs text-muted-foreground">
+                          {provider.description}
+                        </span>
+                        {unavailable ? (
+                          <span className="mt-2 block text-xs font-medium text-amber-700">
+                            OAuth is not configured. Continue with an app password, or configure
+                            OAuth in Settings → Integrations.
+                          </span>
+                        ) : null}
+                      </span>
                     </button>
                   );
                 })(),
               )}
+              <p className="pt-2 text-center text-[11px] text-muted-foreground sm:col-span-2">
+                Provider names and marks belong to their respective owners and identify compatible
+                connection options; they do not imply endorsement.
+              </p>
             </div>
           ) : (selectedProvider?.mode === "oauth-google" ||
               selectedProvider?.mode === "oauth-microsoft") &&
