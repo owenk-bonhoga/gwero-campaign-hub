@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "./auth.middleware";
 import { cleanEmailHtml, requireMailboxAccess } from "./email-identity.server";
+import { mayResumeMailboxSetup } from "./mailbox-policy";
 
 const permission = authMiddleware;
 
@@ -90,14 +91,32 @@ export const saveMailbox = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const db = await pool();
-    const id = data.id || crypto.randomUUID();
+    const email = data.email.trim().toLowerCase();
+    let id = data.id || crypto.randomUUID();
+    let resumeExisting = false;
     if (!data.name.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email))
       throw new Error("Add a valid account name and email address.");
-    if (data.id) await requireMailboxAccess(db, id, context.user, true);
+    if (data.id) {
+      await requireMailboxAccess(db, id, context.user, true);
+    } else {
+      const [existingRows] = await db.execute(
+        "SELECT id, created_by FROM mailboxes WHERE from_email = ? LIMIT 1",
+        [email],
+      );
+      const existing = (existingRows as Array<{ id: string; created_by: string | null }>)[0];
+      if (existing) {
+        if (!mayResumeMailboxSetup(existing.created_by, context.user.id))
+          throw new Error(
+            "That mailbox is connected by another Gwero user. Ask that person to share sending access.",
+          );
+        id = existing.id;
+        resumeExisting = true;
+      }
+    }
     const smtp = data.provider === "smtp";
     const values = [
       data.name.trim(),
-      data.email.trim().toLowerCase(),
+      email,
       data.fromName?.trim() || null,
       data.provider,
       smtp ? data.smtpHost?.trim() || null : null,
@@ -109,7 +128,7 @@ export const saveMailbox = createServerFn({ method: "POST" })
       smtp ? data.username?.trim() || null : null,
     ];
     try {
-      if (data.id) {
+      if (data.id || resumeExisting) {
         await db.execute(
           `UPDATE mailboxes SET name=?,from_email=?,from_name=?,provider=?,smtp_host=?,smtp_port=?,
              smtp_secure=?,smtp_username=?,imap_host=?,imap_port=?,imap_username=?
@@ -125,11 +144,28 @@ export const saveMailbox = createServerFn({ method: "POST" })
         );
       }
     } catch (error) {
-      if ((error as { code?: string }).code === "ER_DUP_ENTRY")
-        throw new Error(
-          "That email account is already connected. Ask its owner to share it with you.",
+      if ((error as { code?: string }).code === "ER_DUP_ENTRY") {
+        const [collisionRows] = await db.execute(
+          "SELECT id, created_by FROM mailboxes WHERE from_email = ? LIMIT 1",
+          [email],
         );
-      throw error;
+        const collision = (collisionRows as Array<{ id: string; created_by: string | null }>)[0];
+        if (collision && mayResumeMailboxSetup(collision.created_by, context.user.id)) {
+          id = collision.id;
+          await db.execute(
+            `UPDATE mailboxes SET name=?,from_email=?,from_name=?,provider=?,smtp_host=?,smtp_port=?,
+               smtp_secure=?,smtp_username=?,imap_host=?,imap_port=?,imap_username=?
+             WHERE id=? AND created_by=?`,
+            [...values, id, context.user.id],
+          );
+        } else {
+          throw new Error(
+            "That mailbox is connected by another Gwero user. Ask that person to share sending access.",
+          );
+        }
+      } else {
+        throw error;
+      }
     }
     await db.execute(
       `INSERT INTO mailbox_access (mailbox_id, user_id, can_send, can_manage, is_default, granted_by)

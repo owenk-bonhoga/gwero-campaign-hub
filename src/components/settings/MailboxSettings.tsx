@@ -55,6 +55,7 @@ export function MailboxSettings({ setupRequired = false }: { setupRequired?: boo
   const test = useServerFn(testMailbox);
   const [wizardOpen, setWizardOpen] = useState(setupRequired);
   const [providerId, setProviderId] = useState("");
+  const [passwordFallback, setPasswordFallback] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [sharing, setSharing] = useState<Row | null>(null);
@@ -95,13 +96,23 @@ export function MailboxSettings({ setupRequired = false }: { setupRequired?: boo
   const resetWizard = () => {
     setWizardOpen(false);
     setProviderId("");
+    setPasswordFallback(false);
     setEditingId(null);
     setForm(emptyForm);
   };
   const chooseProvider = (id: string) => {
     const provider = providerById(id);
+    if (!provider) return;
+    const oauthAvailable =
+      provider.mode === "oauth-google"
+        ? Boolean(workspace?.providerAvailability.google)
+        : provider.mode === "oauth-microsoft"
+          ? Boolean(workspace?.providerAvailability.microsoft)
+          : true;
+    const usePassword = provider.mode === "password" || !oauthAvailable;
     setProviderId(id);
-    if (provider?.mode === "password")
+    setPasswordFallback(usePassword);
+    if (usePassword)
       setForm((current) => ({
         ...current,
         name: provider.label,
@@ -162,6 +173,7 @@ export function MailboxSettings({ setupRequired = false }: { setupRequired?: boo
   const edit = (mailbox: Row) => {
     setEditingId(String(mailbox["id"]));
     setProviderId("custom");
+    setPasswordFallback(true);
     setForm({
       name: String(mailbox["name"] || ""),
       email: String(mailbox["from_email"] || ""),
@@ -385,15 +397,15 @@ export function MailboxSettings({ setupRequired = false }: { setupRequired?: boo
                     <button
                       key={provider.id}
                       type="button"
-                      disabled={unavailable}
                       onClick={() => chooseProvider(provider.id)}
-                      className="rounded-xl border p-4 text-left transition hover:border-primary hover:bg-primary/5 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="rounded-xl border p-4 text-left transition hover:border-primary hover:bg-primary/5"
                     >
                       <p className="font-semibold">{provider.label}</p>
                       <p className="mt-1 text-xs text-muted-foreground">{provider.description}</p>
                       {unavailable ? (
                         <p className="mt-2 text-xs font-medium text-amber-700">
-                          An administrator must configure this provider in Settings → Integrations.
+                          OAuth is not configured. Continue with an app password, or configure OAuth
+                          in Settings → Integrations.
                         </p>
                       ) : null}
                     </button>
@@ -401,8 +413,9 @@ export function MailboxSettings({ setupRequired = false }: { setupRequired?: boo
                 })(),
               )}
             </div>
-          ) : selectedProvider?.mode === "oauth-google" ||
-            selectedProvider?.mode === "oauth-microsoft" ? (
+          ) : (selectedProvider?.mode === "oauth-google" ||
+              selectedProvider?.mode === "oauth-microsoft") &&
+            !passwordFallback ? (
             <div className="rounded-xl border bg-muted/30 p-5">
               <p className="font-semibold">{selectedProvider.label}</p>
               <p className="mt-2 text-sm text-muted-foreground">
@@ -428,6 +441,13 @@ export function MailboxSettings({ setupRequired = false }: { setupRequired?: boo
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
+              {passwordFallback && selectedProvider?.mode !== "password" ? (
+                <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950 sm:col-span-2">
+                  OAuth is not configured for {selectedProvider?.label}. Use an app password where
+                  your provider supports one. For Microsoft tenants with SMTP AUTH disabled, an
+                  administrator must configure OAuth under Integrations.
+                </div>
+              ) : null}
               {(
                 [
                   ["name", "Account name"],
@@ -450,7 +470,13 @@ export function MailboxSettings({ setupRequired = false }: { setupRequired?: boo
                     type={key === "password" ? "password" : key === "email" ? "email" : "text"}
                     value={String(form[key])}
                     onChange={(event) =>
-                      setForm((current) => ({ ...current, [key]: event.target.value }))
+                      setForm((current) => ({
+                        ...current,
+                        [key]: event.target.value,
+                        ...(key === "email" && !current.username
+                          ? { username: event.target.value }
+                          : {}),
+                      }))
                     }
                   />
                 </div>

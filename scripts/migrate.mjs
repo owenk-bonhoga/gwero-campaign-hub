@@ -202,6 +202,59 @@ async function restoreUnsignedTenderDocuments() {
     console.log(`Restored ${result.affectedRows} unsigned tender document(s).`);
 }
 
+async function clearConnectedMailboxesOnce() {
+  const migrationId = "cleanup-connected-mailboxes-20261117";
+  const lockName = `${database}:${migrationId}`;
+  const [lockRows] = await connection.execute("SELECT GET_LOCK(?, 30) AS acquired", [lockName]);
+  if (Number(lockRows[0]?.acquired) !== 1)
+    throw new Error("Could not acquire the connected-mailbox cleanup migration lock.");
+  try {
+    const [applied] = await connection.execute(
+      "SELECT 1 FROM schema_migrations WHERE id = ? LIMIT 1",
+      [migrationId],
+    );
+    if (applied.length) return;
+
+    // Secure-share portals must survive removal of the account that originally sent them.
+    const [constraints] = await connection.execute(
+      `SELECT rc.DELETE_RULE
+         FROM information_schema.REFERENTIAL_CONSTRAINTS rc
+        WHERE rc.CONSTRAINT_SCHEMA = ? AND rc.TABLE_NAME = 'secure_document_shares'
+          AND rc.CONSTRAINT_NAME = 'secure_document_shares_mailbox_fk' LIMIT 1`,
+      [database],
+    );
+    if (constraints[0]?.DELETE_RULE !== "SET NULL") {
+      if (constraints.length)
+        await connection.query(
+          "ALTER TABLE secure_document_shares DROP FOREIGN KEY secure_document_shares_mailbox_fk",
+        );
+      await connection.query("ALTER TABLE secure_document_shares MODIFY mailbox_id CHAR(36) NULL");
+      await connection.query(
+        `ALTER TABLE secure_document_shares
+         ADD CONSTRAINT secure_document_shares_mailbox_fk
+         FOREIGN KEY (mailbox_id) REFERENCES mailboxes(id) ON DELETE SET NULL`,
+      );
+    }
+
+    await connection.beginTransaction();
+    try {
+      await connection.execute("UPDATE opportunity_submissions SET mailbox_id = NULL");
+      const [result] = await connection.execute("DELETE FROM mailboxes");
+      await connection.execute("INSERT INTO schema_migrations (id, checksum) VALUES (?, ?)", [
+        migrationId,
+        createHash("sha256").update(migrationId).digest("hex"),
+      ]);
+      await connection.commit();
+      console.log(`Cleared ${result.affectedRows} connected email account(s).`);
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    }
+  } finally {
+    await connection.execute("SELECT RELEASE_LOCK(?)", [lockName]);
+  }
+}
+
 try {
   const schema = readFileSync(resolve("database/schema.sql"), "utf8");
   for (const statement of schema
@@ -251,6 +304,7 @@ try {
     }
     await connection.query(statement);
   }
+  await clearConnectedMailboxesOnce();
   await restoreUnsignedTenderDocuments();
   await enrichCampaignLocations();
   const checksum = createHash("sha256").update(schema).digest("hex");
