@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getSecret, getSecretStatus, setSecret } from "./settings.server";
-import { permissionMiddleware } from "./auth.middleware";
+import { authMiddleware, permissionMiddleware } from "./auth.middleware";
 
 async function admin() {
   return (await import("./db.server")).serverDb;
@@ -24,8 +24,29 @@ export const getPublicBranding = createServerFn({ method: "GET" }).handler(async
 });
 
 export const getSettingsOverview = createServerFn({ method: "GET" })
-  .middleware([permissionMiddleware("settings.manage")])
+  .middleware([authMiddleware])
   .handler(async ({ context }) => {
+    const canManageSettings = context.user.permissions.includes("settings.manage");
+    if (!canManageSettings)
+      return {
+        settings: [],
+        templates: [],
+        roles: [],
+        permissions: [],
+        rolePermissions: [],
+        users: [],
+        currentUserId: context.user.id,
+        canManageSettings: false,
+        configured: {
+          openai: false,
+          googleId: false,
+          googleSecret: false,
+          microsoftId: false,
+          microsoftSecret: false,
+          bidaf: false,
+        },
+        unreadableSecrets: [],
+      };
     const db = await admin();
     const secretKeys = [
       "openai_api_key",
@@ -57,6 +78,7 @@ export const getSettingsOverview = createServerFn({ method: "GET" })
         rolePermissions: rolePermissions.data ?? [],
         users: (users.data ?? []).map(({ password_hash: _passwordHash, ...user }) => user),
         currentUserId: context.user.id,
+        canManageSettings: true,
         configured: {
           openai: secretStatus["openai_api_key"] === "configured",
           googleId: secretStatus["google_oauth_client_id"] === "configured",

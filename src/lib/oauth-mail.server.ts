@@ -1,5 +1,5 @@
 import { requireUser } from "./auth.server";
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 
 export type OAuthProvider = "google" | "microsoft";
 const config = {
@@ -39,9 +39,18 @@ async function env(provider: OAuthProvider) {
   return { ...item, clientId, clientSecret };
 }
 export async function beginMailOAuth(provider: OAuthProvider, request: Request) {
-  await requireUser("campaigns.manage");
-  const item = await env(provider);
+  await requireUser();
   const origin = new URL(request.url).origin;
+  let item: Awaited<ReturnType<typeof env>>;
+  try {
+    item = await env(provider);
+  } catch (error) {
+    return redirectResult(
+      origin,
+      "error",
+      error instanceof Error ? error.message : "This email provider is not configured.",
+    );
+  }
   const state = randomBytes(24).toString("hex");
   const redirectUri = `${origin}/api/oauth/${provider}/callback`;
   const url = new URL(item.authorize);
@@ -61,7 +70,7 @@ export async function beginMailOAuth(provider: OAuthProvider, request: Request) 
   });
 }
 export async function finishMailOAuth(provider: OAuthProvider, request: Request) {
-  const user = await requireUser("campaigns.manage");
+  const user = await requireUser();
   const item = await env(provider);
   const url = new URL(request.url);
   const origin = url.origin;
@@ -103,40 +112,62 @@ export async function finishMailOAuth(provider: OAuthProvider, request: Request)
   const email = profile.email || profile.mail || profile.userPrincipalName;
   if (!email)
     return redirectResult(origin, "error", "The account did not provide an email address");
-  const { serverDb } = await import("./db.server");
+  const { getPool, serverDb } = await import("./db.server");
+  const db = getPool();
   const storedProvider = provider === "google" ? "gmail" : "outlook";
-  const { data: mailbox, error } = await serverDb
-    .from("mailboxes")
-    .upsert(
-      {
-        name: profile.name || email,
-        from_email: email,
-        from_name: profile.name || null,
-        provider: storedProvider,
-        last_status: "Connected with OAuth",
-        created_by: user.id,
-      } as never,
-      { onConflict: "from_email" },
-    )
-    .select()
-    .single();
-  if (error || !mailbox)
-    return redirectResult(origin, "error", error?.message || "Could not save mailbox");
+  const [existingRows] = await db.execute(
+    "SELECT id, created_by FROM mailboxes WHERE from_email = ? LIMIT 1",
+    [email.toLowerCase()],
+  );
+  const existing = (existingRows as Array<{ id: string; created_by: string | null }>)[0];
+  if (existing && existing.created_by !== user.id)
+    return redirectResult(
+      origin,
+      "error",
+      "That email account belongs to another user. Ask its owner to share sending access.",
+    );
+  const mailboxId = existing?.id || randomUUID();
+  if (existing) {
+    await db.execute(
+      `UPDATE mailboxes SET name=?,from_name=?,provider=?,last_status=? WHERE id=? AND created_by=?`,
+      [
+        profile.name || email,
+        profile.name || null,
+        storedProvider,
+        "Connected with OAuth",
+        mailboxId,
+        user.id,
+      ],
+    );
+  } else {
+    await db.execute(
+      `INSERT INTO mailboxes (id,name,from_email,from_name,provider,last_status,created_by)
+       VALUES (?,?,?,?,?,?,?)`,
+      [
+        mailboxId,
+        profile.name || email,
+        email.toLowerCase(),
+        profile.name || null,
+        storedProvider,
+        "Connected with OAuth",
+        user.id,
+      ],
+    );
+  }
   await serverDb.from("mailbox_secrets").upsert(
     {
-      mailbox_id: mailbox.id,
+      mailbox_id: mailboxId,
       oauth_access_token: tokens.access_token,
       oauth_refresh_token: tokens.refresh_token || null,
       oauth_expires_at: new Date(Date.now() + (tokens.expires_in || 3600) * 1000).toISOString(),
     } as never,
     { onConflict: "mailbox_id" },
   );
-  const { getPool } = await import("./db.server");
-  await getPool().execute(
+  await db.execute(
     `INSERT INTO mailbox_access (mailbox_id, user_id, can_send, can_manage, is_default, granted_by)
      VALUES (?, ?, TRUE, TRUE, NOT EXISTS(SELECT 1 FROM mailbox_access x WHERE x.user_id = ?), ?)
      ON DUPLICATE KEY UPDATE can_send = TRUE, can_manage = TRUE`,
-    [mailbox.id, user.id, user.id, user.id],
+    [mailboxId, user.id, user.id, user.id],
   );
   return redirectResult(origin, "connected", provider);
 }
@@ -144,7 +175,7 @@ function redirectResult(origin: string, key: string, value: string) {
   return new Response(null, {
     status: 302,
     headers: {
-      location: `${origin}/settings?${key}=${encodeURIComponent(value)}`,
+      location: `${origin}/settings?tab=email&${key}=${encodeURIComponent(value)}`,
       "set-cookie":
         "gwero_oauth_google=; Path=/; HttpOnly; Max-Age=0, gwero_oauth_microsoft=; Path=/; HttpOnly; Max-Age=0",
     },

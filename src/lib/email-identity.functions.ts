@@ -1,8 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
-import { permissionMiddleware } from "./auth.middleware";
+import { authMiddleware } from "./auth.middleware";
 import { cleanEmailHtml, requireMailboxAccess } from "./email-identity.server";
 
-const permission = permissionMiddleware("campaigns.manage");
+const permission = authMiddleware;
 
 async function pool() {
   return (await import("./db.server")).getPool();
@@ -12,25 +12,30 @@ export const getEmailIdentityWorkspace = createServerFn({ method: "GET" })
   .middleware([permission])
   .handler(async ({ context }) => {
     const db = await pool();
-    const [mailboxes, signatures, users, access] = await Promise.all([
+    const { getSecretStatus } = await import("./settings.server");
+    const [
+      mailboxes,
+      signatures,
+      users,
+      access,
+      googleId,
+      googleSecret,
+      microsoftId,
+      microsoftSecret,
+    ] = await Promise.all([
       db.execute(
         `SELECT m.id, m.name, m.from_email, m.from_name, m.provider, m.smtp_host, m.smtp_port,
                 m.smtp_secure, m.smtp_username, m.imap_host, m.imap_port, m.imap_username,
                 m.last_status, m.created_by, ma.can_send,
-                IF(m.created_by = ? OR ma.can_manage = TRUE OR (m.created_by IS NULL AND ? = 1), TRUE, FALSE) AS can_manage,
+                IF(m.created_by = ?, TRUE, FALSE) AS can_manage,
+                IF(m.created_by = ?, TRUE, FALSE) AS is_owner,
                 ma.is_default,
                 ma.active_signature_id
            FROM mailboxes m
            LEFT JOIN mailbox_access ma ON ma.mailbox_id = m.id AND ma.user_id = ?
-          WHERE m.created_by = ? OR ma.user_id IS NOT NULL OR (m.created_by IS NULL AND ? = 1)
+          WHERE m.created_by = ? OR ma.user_id IS NOT NULL
           ORDER BY ma.is_default DESC, m.name`,
-        [
-          context.user.id,
-          context.user.roleName === "Administrator" ? 1 : 0,
-          context.user.id,
-          context.user.id,
-          context.user.roleName === "Administrator" ? 1 : 0,
-        ],
+        [context.user.id, context.user.id, context.user.id, context.user.id],
       ),
       db.execute(
         `SELECT s.* FROM email_signatures s
@@ -44,11 +49,13 @@ export const getEmailIdentityWorkspace = createServerFn({ method: "GET" })
         `SELECT ma.mailbox_id, ma.user_id, ma.can_send, ma.can_manage, u.full_name, u.email
            FROM mailbox_access ma JOIN system_users u ON u.id = ma.user_id
            JOIN mailboxes m ON m.id = ma.mailbox_id
-          WHERE m.created_by = ? OR (m.created_by IS NULL AND ? = 1) OR EXISTS(
-            SELECT 1 FROM mailbox_access mine WHERE mine.mailbox_id = m.id AND mine.user_id = ? AND mine.can_manage = TRUE
-          ) ORDER BY u.full_name`,
-        [context.user.id, context.user.roleName === "Administrator" ? 1 : 0, context.user.id],
+          WHERE m.created_by = ? ORDER BY u.full_name`,
+        [context.user.id],
       ),
+      getSecretStatus("google_oauth_client_id"),
+      getSecretStatus("google_oauth_client_secret"),
+      getSecretStatus("microsoft_oauth_client_id"),
+      getSecretStatus("microsoft_oauth_client_secret"),
     ]);
     return JSON.parse(
       JSON.stringify({
@@ -57,6 +64,10 @@ export const getEmailIdentityWorkspace = createServerFn({ method: "GET" })
         users: users[0],
         access: access[0],
         userId: context.user.id,
+        providerAvailability: {
+          google: googleId === "configured" && googleSecret === "configured",
+          microsoft: microsoftId === "configured" && microsoftSecret === "configured",
+        },
       }),
     );
   });
@@ -84,32 +95,42 @@ export const saveMailbox = createServerFn({ method: "POST" })
       throw new Error("Add a valid account name and email address.");
     if (data.id) await requireMailboxAccess(db, id, context.user, true);
     const smtp = data.provider === "smtp";
-    await db.execute(
-      `INSERT INTO mailboxes
-        (id, name, from_email, from_name, provider, smtp_host, smtp_port, smtp_secure,
-         smtp_username, imap_host, imap_port, imap_username, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE name = VALUES(name), from_email = VALUES(from_email),
-         from_name = VALUES(from_name), provider = VALUES(provider), smtp_host = VALUES(smtp_host),
-         smtp_port = VALUES(smtp_port), smtp_secure = VALUES(smtp_secure),
-         smtp_username = VALUES(smtp_username), imap_host = VALUES(imap_host),
-         imap_port = VALUES(imap_port), imap_username = VALUES(imap_username)`,
-      [
-        id,
-        data.name.trim(),
-        data.email.trim().toLowerCase(),
-        data.fromName?.trim() || null,
-        data.provider,
-        smtp ? data.smtpHost?.trim() || null : null,
-        smtp ? Number(data.smtpPort || 587) : null,
-        smtp && Number(data.smtpPort) === 465,
-        smtp ? data.username?.trim() || null : null,
-        smtp ? data.imapHost?.trim() || null : null,
-        smtp ? Number(data.imapPort || 993) : null,
-        smtp ? data.username?.trim() || null : null,
-        context.user.id,
-      ],
-    );
+    const values = [
+      data.name.trim(),
+      data.email.trim().toLowerCase(),
+      data.fromName?.trim() || null,
+      data.provider,
+      smtp ? data.smtpHost?.trim() || null : null,
+      smtp ? Number(data.smtpPort || 587) : null,
+      smtp && Number(data.smtpPort) === 465,
+      smtp ? data.username?.trim() || null : null,
+      smtp ? data.imapHost?.trim() || null : null,
+      smtp ? Number(data.imapPort || 993) : null,
+      smtp ? data.username?.trim() || null : null,
+    ];
+    try {
+      if (data.id) {
+        await db.execute(
+          `UPDATE mailboxes SET name=?,from_email=?,from_name=?,provider=?,smtp_host=?,smtp_port=?,
+             smtp_secure=?,smtp_username=?,imap_host=?,imap_port=?,imap_username=?
+           WHERE id=? AND created_by=?`,
+          [...values, id, context.user.id],
+        );
+      } else {
+        await db.execute(
+          `INSERT INTO mailboxes
+            (id,name,from_email,from_name,provider,smtp_host,smtp_port,smtp_secure,smtp_username,
+             imap_host,imap_port,imap_username,created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+          [id, ...values, context.user.id],
+        );
+      }
+    } catch (error) {
+      if ((error as { code?: string }).code === "ER_DUP_ENTRY")
+        throw new Error(
+          "That email account is already connected. Ask its owner to share it with you.",
+        );
+      throw error;
+    }
     await db.execute(
       `INSERT INTO mailbox_access (mailbox_id, user_id, can_send, can_manage, is_default, granted_by)
        VALUES (?, ?, TRUE, TRUE, NOT EXISTS(SELECT 1 FROM mailbox_access x WHERE x.user_id = ?), ?)
@@ -119,15 +140,31 @@ export const saveMailbox = createServerFn({ method: "POST" })
     return { id };
   });
 
+export const updateMailboxProfile = createServerFn({ method: "POST" })
+  .middleware([permission])
+  .validator((data: { id: string; name: string; fromName?: string }) => data)
+  .handler(async ({ data, context }) => {
+    const db = await pool();
+    await requireMailboxAccess(db, data.id, context.user, true);
+    if (!data.name.trim()) throw new Error("Account name is required.");
+    await db.execute(
+      "UPDATE mailboxes SET name = ?, from_name = ? WHERE id = ? AND created_by = ?",
+      [data.name.trim(), data.fromName?.trim() || null, data.id, context.user.id],
+    );
+    return { ok: true };
+  });
+
 export const setMailboxUserAccess = createServerFn({ method: "POST" })
   .middleware([permission])
   .validator(
-    (data: { mailboxId: string; userId: string; canSend: boolean; canManage: boolean }) => data,
+    (data: { mailboxId: string; userId: string; canSend: boolean; canManage?: boolean }) => data,
   )
   .handler(async ({ data, context }) => {
     const db = await pool();
     await requireMailboxAccess(db, data.mailboxId, context.user, true);
-    if (!data.canSend && !data.canManage) {
+    if (data.userId === context.user.id)
+      throw new Error("Your owner access cannot be shared or revoked.");
+    if (!data.canSend) {
       await db.execute("DELETE FROM mailbox_access WHERE mailbox_id = ? AND user_id = ?", [
         data.mailboxId,
         data.userId,
@@ -135,9 +172,9 @@ export const setMailboxUserAccess = createServerFn({ method: "POST" })
     } else {
       await db.execute(
         `INSERT INTO mailbox_access (mailbox_id, user_id, can_send, can_manage, granted_by)
-         VALUES (?, ?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE can_send = VALUES(can_send), can_manage = VALUES(can_manage), granted_by = VALUES(granted_by)`,
-        [data.mailboxId, data.userId, data.canSend, data.canManage, context.user.id],
+         VALUES (?, ?, TRUE, FALSE, ?)
+         ON DUPLICATE KEY UPDATE can_send = TRUE, can_manage = FALSE, granted_by = VALUES(granted_by)`,
+        [data.mailboxId, data.userId, context.user.id],
       );
     }
     return { ok: true };
@@ -149,7 +186,37 @@ export const deleteMailbox = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const db = await pool();
     await requireMailboxAccess(db, data.id, context.user, true);
-    await db.execute("DELETE FROM mailboxes WHERE id = ?", [data.id]);
+    const connection = await db.getConnection();
+    try {
+      await connection.beginTransaction();
+      const [owned] = await connection.execute(
+        "SELECT id FROM mailboxes WHERE created_by = ? FOR UPDATE",
+        [context.user.id],
+      );
+      const remaining = (owned as Array<{ id: string }>).filter(
+        (mailbox) => mailbox.id !== data.id,
+      );
+      if (!remaining.length) throw new Error("Keep at least one sending account connected.");
+      await connection.execute("DELETE FROM mailboxes WHERE id = ? AND created_by = ?", [
+        data.id,
+        context.user.id,
+      ]);
+      const [defaults] = await connection.execute(
+        "SELECT mailbox_id FROM mailbox_access WHERE user_id = ? AND is_default = TRUE LIMIT 1",
+        [context.user.id],
+      );
+      if (!(defaults as Array<{ mailbox_id: string }>)[0])
+        await connection.execute(
+          "UPDATE mailbox_access SET is_default = TRUE WHERE mailbox_id = ? AND user_id = ?",
+          [remaining[0]!.id, context.user.id],
+        );
+      await connection.commit();
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
     return { ok: true };
   });
 

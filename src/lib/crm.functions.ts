@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { personalize, htmlToText } from "./personalize";
-import { permissionMiddleware } from "./auth.middleware";
+import { authMiddleware, permissionMiddleware } from "./auth.middleware";
 
 type Json = Record<string, unknown>;
 
@@ -100,7 +100,7 @@ export async function gatewayFetch(
 /* ------------------------------------------------------------------ */
 
 export const saveMailboxCredentials = createServerFn({ method: "POST" })
-  .middleware([permissionMiddleware("campaigns.manage")])
+  .middleware([authMiddleware])
   .validator((data: { mailboxId: string; smtpPassword?: string; imapPassword?: string }) => data)
   .handler(async ({ data, context }) => {
     const { getPool } = await import("./db.server");
@@ -118,12 +118,12 @@ export const saveMailboxCredentials = createServerFn({ method: "POST" })
   });
 
 export const testMailbox = createServerFn({ method: "POST" })
-  .middleware([permissionMiddleware("campaigns.manage")])
+  .middleware([authMiddleware])
   .validator((data: { mailboxId: string }) => data)
   .handler(async ({ data, context }) => {
     const { getPool } = await import("./db.server");
     const { requireMailboxAccess } = await import("./email-identity.server");
-    await requireMailboxAccess(getPool(), data.mailboxId, context.user);
+    await requireMailboxAccess(getPool(), data.mailboxId, context.user, true);
     const db = await admin();
     const { data: mailbox, error } = await db
       .from("mailboxes")

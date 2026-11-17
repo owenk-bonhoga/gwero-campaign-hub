@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -44,7 +44,15 @@ import {
   setRolePermission,
 } from "@/lib/auth.functions";
 
-export const Route = createFileRoute("/settings")({ component: SettingsPage });
+export const Route = createFileRoute("/settings")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    tab: typeof search["tab"] === "string" ? search["tab"] : undefined,
+    setup: search["setup"] === "required" ? "required" : undefined,
+    connected: typeof search["connected"] === "string" ? search["connected"] : undefined,
+    error: typeof search["error"] === "string" ? search["error"] : undefined,
+  }),
+  component: SettingsPage,
+});
 
 function Field({
   label,
@@ -74,6 +82,18 @@ function Field({
 
 function SettingsPage() {
   const qc = useQueryClient();
+  const search = Route.useSearch();
+  const [activeTab, setActiveTab] = useState(search.tab || "general");
+  useEffect(() => {
+    if (search.connected) toast.success(`${search.connected} email account connected.`);
+    if (search.error) toast.error(search.error);
+    if (search.connected || search.error) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("connected");
+      url.searchParams.delete("error");
+      window.history.replaceState({}, "", url);
+    }
+  }, [search.connected, search.error]);
   const { data, isLoading } = useQuery({
     queryKey: ["settings-overview"],
     queryFn: () => getSettingsOverview(),
@@ -91,6 +111,15 @@ function SettingsPage() {
         <p className="text-muted-foreground">Loading settings…</p>
       </AppShell>
     );
+  const managedTabs = ["general", "templates", "currencies", "ai", "integrations", "access"];
+  const setupRequired = search.setup === "required";
+  const tab = setupRequired
+    ? data.canManageSettings && activeTab === "integrations"
+      ? "integrations"
+      : "email"
+    : data.canManageSettings || !managedTabs.includes(activeTab)
+      ? activeTab
+      : "email";
   const secretLabels: Record<string, string> = {
     openai_api_key: "OpenAI API key",
     google_oauth_client_id: "Google OAuth client ID",
@@ -118,15 +147,37 @@ function SettingsPage() {
           </p>
         </div>
       ) : null}
-      <Tabs defaultValue="general" className="space-y-5">
+      <Tabs
+        value={tab}
+        onValueChange={(value) => {
+          setActiveTab(value);
+          const url = new URL(window.location.href);
+          url.searchParams.set("tab", value);
+          window.history.replaceState({}, "", url);
+        }}
+        className="space-y-5"
+      >
         <TabsList className="h-auto w-full justify-start overflow-x-auto bg-white p-1.5">
-          <TabsTrigger value="general">General</TabsTrigger>
+          {data.canManageSettings && !setupRequired ? (
+            <TabsTrigger value="general">General</TabsTrigger>
+          ) : null}
           <TabsTrigger value="email">Email connections</TabsTrigger>
-          <TabsTrigger value="templates">Templates & signatures</TabsTrigger>
-          <TabsTrigger value="currencies">Currencies</TabsTrigger>
-          <TabsTrigger value="ai">AI & Prospecting</TabsTrigger>
-          <TabsTrigger value="integrations">Integrations</TabsTrigger>
-          <TabsTrigger value="access">Users & access</TabsTrigger>
+          {!setupRequired ? <TabsTrigger value="signatures">Email signatures</TabsTrigger> : null}
+          {data.canManageSettings && !setupRequired ? (
+            <TabsTrigger value="templates">Email templates</TabsTrigger>
+          ) : null}
+          {data.canManageSettings && !setupRequired ? (
+            <TabsTrigger value="currencies">Currencies</TabsTrigger>
+          ) : null}
+          {data.canManageSettings && !setupRequired ? (
+            <TabsTrigger value="ai">AI & Prospecting</TabsTrigger>
+          ) : null}
+          {data.canManageSettings ? (
+            <TabsTrigger value="integrations">Integrations</TabsTrigger>
+          ) : null}
+          {data.canManageSettings && !setupRequired ? (
+            <TabsTrigger value="access">Users & access</TabsTrigger>
+          ) : null}
         </TabsList>
         <TabsContent value="general">
           <GeneralTab
@@ -138,10 +189,10 @@ function SettingsPage() {
           />
         </TabsContent>
         <TabsContent value="email">
-          <EmailTab
-            configured={data.configured}
-            refresh={() => qc.invalidateQueries({ queryKey: ["settings-overview"] })}
-          />
+          <EmailTab setupRequired={setupRequired} />
+        </TabsContent>
+        <TabsContent value="signatures">
+          <EmailSignatureSettings />
         </TabsContent>
         <TabsContent value="templates">
           <TemplatesTab
@@ -163,6 +214,10 @@ function SettingsPage() {
           <IntegrationsTab
             initial={values}
             configured={data.configured.bidaf}
+            emailConfigured={{
+              google: data.configured.googleId && data.configured.googleSecret,
+              microsoft: data.configured.microsoftId && data.configured.microsoftSecret,
+            }}
             refresh={() => qc.invalidateQueries({ queryKey: ["settings-overview"] })}
           />
         </TabsContent>
@@ -180,12 +235,22 @@ function SettingsPage() {
 function IntegrationsTab({
   initial,
   configured,
+  emailConfigured,
   refresh,
 }: {
   initial: Record<string, string>;
   configured: boolean;
+  emailConfigured: { google: boolean; microsoft: boolean };
   refresh: () => void;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [editingEmailApps, setEditingEmailApps] = useState(false);
+  const [emailApps, setEmailApps] = useState({
+    google_oauth_client_id: "",
+    google_oauth_client_secret: "",
+    microsoft_oauth_client_id: "",
+    microsoft_oauth_client_secret: "",
+  });
   const [form, setForm] = useState({
     origin: initial["bidaf_origin"] || "https://bidaf.africa",
     organisationId: initial["bidaf_organisation_id"] || "",
@@ -208,6 +273,7 @@ function IntegrationsTab({
       return syncBidafOpportunities();
     },
     onSuccess: (result) => {
+      setEditing(false);
       refresh();
       setForm((current) => ({ ...current, token: "" }));
       if (result.status === "completed") {
@@ -222,61 +288,168 @@ function IntegrationsTab({
   });
   const set = (key: keyof typeof form, value: string) =>
     setForm((current) => ({ ...current, [key]: value }));
+  const saveEmailApps = useMutation({
+    mutationFn: () => saveProviderSecrets({ data: emailApps }),
+    onSuccess: () => {
+      toast.success("Email provider applications saved securely.");
+      setEditingEmailApps(false);
+      setEmailApps({
+        google_oauth_client_id: "",
+        google_oauth_client_secret: "",
+        microsoft_oauth_client_id: "",
+        microsoft_oauth_client_secret: "",
+      });
+      refresh();
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <CardTitle>BidAF opportunity discovery</CardTitle>
-            <CardDescription>
-              Import active opportunities hourly and route them into Bids, EOI, RFPs and RFQs.
-            </CardDescription>
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <CardTitle>BidAF opportunity discovery</CardTitle>
+              <CardDescription>
+                Import active opportunities hourly and route them into Bids, EOI, RFPs and RFQs.
+              </CardDescription>
+            </div>
+            <Badge variant={configured ? "default" : "secondary"}>
+              {configured ? "Token configured" : "Token required"}
+            </Badge>
+            <Button variant="outline" onClick={() => setEditing((value) => !value)}>
+              {editing ? "Cancel" : configured ? "Configure" : "Connect"}
+            </Button>
           </div>
-          <Badge variant={configured ? "default" : "secondary"}>
-            {configured ? "Token configured" : "Token required"}
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="grid gap-4 md:grid-cols-2">
-        <Field
-          label="BidAF origin"
-          value={form.origin}
-          placeholder="https://bidaf.africa"
-          onChange={(value) => set("origin", value)}
-        />
-        <Field
-          label="Organisation ID"
-          value={form.organisationId}
-          onChange={(value) => set("organisationId", value)}
-        />
-        <Field
-          label="Country code"
-          value={form.country}
-          placeholder="MW"
-          onChange={(value) => set("country", value.slice(0, 2).toUpperCase())}
-        />
-        <Field
-          label={configured ? "Replace API token" : "API token"}
-          type="password"
-          value={form.token}
-          placeholder={configured ? "Leave blank to keep the current token" : "baf_test_…"}
-          onChange={(value) => set("token", value)}
-        />
-        <p className="text-sm text-muted-foreground md:col-span-2">
-          The token is encrypted at rest and used only by the server. Saving also performs a safe,
-          idempotent sync; later runs are limited to once per hour.
-        </p>
-        <Button
-          className="md:w-fit"
-          disabled={
-            save.isPending || !form.origin || !form.organisationId || (!configured && !form.token)
-          }
-          onClick={() => save.mutate()}
-        >
-          {save.isPending ? "Connecting…" : "Save and sync BidAF"}
-        </Button>
-      </CardContent>
-    </Card>
+        </CardHeader>
+        {editing ? (
+          <CardContent className="grid gap-4 md:grid-cols-2">
+            <Field
+              label="BidAF origin"
+              value={form.origin}
+              placeholder="https://bidaf.africa"
+              onChange={(value) => set("origin", value)}
+            />
+            <Field
+              label="Organisation ID"
+              value={form.organisationId}
+              onChange={(value) => set("organisationId", value)}
+            />
+            <Field
+              label="Country code"
+              value={form.country}
+              placeholder="MW"
+              onChange={(value) => set("country", value.slice(0, 2).toUpperCase())}
+            />
+            <Field
+              label={configured ? "Replace API token" : "API token"}
+              type="password"
+              value={form.token}
+              placeholder={configured ? "Leave blank to keep the current token" : "baf_test_…"}
+              onChange={(value) => set("token", value)}
+            />
+            <p className="text-sm text-muted-foreground md:col-span-2">
+              The token is encrypted at rest and used only by the server. Saving also performs a
+              safe, idempotent sync; later runs are limited to once per hour.
+            </p>
+            <Button
+              className="md:w-fit"
+              disabled={
+                save.isPending ||
+                !form.origin ||
+                !form.organisationId ||
+                (!configured && !form.token)
+              }
+              onClick={() => save.mutate()}
+            >
+              {save.isPending ? "Connecting…" : "Save and sync BidAF"}
+            </Button>
+          </CardContent>
+        ) : null}
+      </Card>
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <CardTitle>Email provider applications</CardTitle>
+              <CardDescription>
+                Company-wide OAuth configuration used by the one-click Google and Microsoft account
+                setup.
+              </CardDescription>
+            </div>
+            <div className="flex gap-2">
+              <Badge variant={emailConfigured.google ? "default" : "secondary"}>
+                Google {emailConfigured.google ? "ready" : "not configured"}
+              </Badge>
+              <Badge variant={emailConfigured.microsoft ? "default" : "secondary"}>
+                Microsoft {emailConfigured.microsoft ? "ready" : "not configured"}
+              </Badge>
+              <Button variant="outline" onClick={() => setEditingEmailApps((value) => !value)}>
+                {editingEmailApps ? "Cancel" : "Configure"}
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        {editingEmailApps ? (
+          <CardContent className="grid gap-4 md:grid-cols-2">
+            <Field
+              label={emailConfigured.google ? "Replace Google client ID" : "Google client ID"}
+              value={emailApps.google_oauth_client_id}
+              onChange={(value) =>
+                setEmailApps((current) => ({ ...current, google_oauth_client_id: value }))
+              }
+              placeholder={emailConfigured.google ? "Leave blank to keep current" : ""}
+            />
+            <Field
+              label={
+                emailConfigured.google ? "Replace Google client secret" : "Google client secret"
+              }
+              type="password"
+              value={emailApps.google_oauth_client_secret}
+              onChange={(value) =>
+                setEmailApps((current) => ({ ...current, google_oauth_client_secret: value }))
+              }
+              placeholder={emailConfigured.google ? "Leave blank to keep current" : ""}
+            />
+            <Field
+              label={
+                emailConfigured.microsoft ? "Replace Microsoft client ID" : "Microsoft client ID"
+              }
+              value={emailApps.microsoft_oauth_client_id}
+              onChange={(value) =>
+                setEmailApps((current) => ({ ...current, microsoft_oauth_client_id: value }))
+              }
+              placeholder={emailConfigured.microsoft ? "Leave blank to keep current" : ""}
+            />
+            <Field
+              label={
+                emailConfigured.microsoft
+                  ? "Replace Microsoft client secret"
+                  : "Microsoft client secret"
+              }
+              type="password"
+              value={emailApps.microsoft_oauth_client_secret}
+              onChange={(value) =>
+                setEmailApps((current) => ({ ...current, microsoft_oauth_client_secret: value }))
+              }
+              placeholder={emailConfigured.microsoft ? "Leave blank to keep current" : ""}
+            />
+            <p className="text-sm text-muted-foreground md:col-span-2">
+              Register the callback URLs <code>/api/oauth/google/callback</code> and{" "}
+              <code>/api/oauth/microsoft/callback</code> at the providers. Secrets are encrypted at
+              rest.
+            </p>
+            <Button
+              className="md:w-fit"
+              disabled={saveEmailApps.isPending}
+              onClick={() => saveEmailApps.mutate()}
+            >
+              {saveEmailApps.isPending ? "Saving…" : "Save provider applications"}
+            </Button>
+          </CardContent>
+        ) : null}
+      </Card>
+    </div>
   );
 }
 
@@ -287,6 +460,7 @@ function GeneralTab({
   initial: Record<string, string>;
   onSaved: () => void;
 }) {
+  const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
     system_name: initial["system_name"] || "Gwero OS",
     primary_color: initial["primary_color"] || "#5b21b6",
@@ -299,6 +473,7 @@ function GeneralTab({
     mutationFn: () => saveSystemSettings({ data: { group: "branding", values: form } }),
     onSuccess: () => {
       toast.success("Brand settings saved.");
+      setEditing(false);
       onSaved();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -308,73 +483,100 @@ function GeneralTab({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Brand and system identity</CardTitle>
-        <CardDescription>
-          Changes are stored centrally for the interface and outbound communication.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-4 md:grid-cols-2">
-        <Field
-          label="System name"
-          value={form.system_name}
-          onChange={(v) => set("system_name", v)}
-        />
-        <div className="space-y-2">
-          <Label>Font family</Label>
-          <Select value={form.font_family} onValueChange={(v) => set("font_family", v)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {[
-                "Inter",
-                "Roboto",
-                "Arial",
-                "Georgia",
-                "Verdana",
-                "Trebuchet MS",
-                "Times New Roman",
-                "Courier New",
-              ].map((font) => (
-                <SelectItem key={font} value={font}>
-                  {font}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <CardTitle>Brand and system identity</CardTitle>
+            <CardDescription>
+              Changes are stored centrally for the interface and outbound communication.
+            </CardDescription>
+          </div>
+          <Button variant="outline" onClick={() => setEditing((value) => !value)}>
+            {editing ? "Cancel" : "Edit branding"}
+          </Button>
         </div>
-        <Field
-          label="Primary color"
-          type="color"
-          value={form.primary_color}
-          onChange={(v) => set("primary_color", v)}
-        />
-        <Field
-          label="Accent color"
-          type="color"
-          value={form.accent_color}
-          onChange={(v) => set("accent_color", v)}
-        />
-        <ImageUpload
-          label="System logo"
-          value={form.logo_url}
-          onChange={(v) => set("logo_url", v)}
-          accept="image/png,image/jpeg,image/webp,image/svg+xml"
-        />
-        <ImageUpload
-          label="Browser icon"
-          value={form.icon_url}
-          onChange={(v) => set("icon_url", v)}
-          accept="image/png,image/x-icon,image/svg+xml"
-        />
-        <Button
-          className="md:col-span-2 md:w-fit"
-          disabled={save.isPending}
-          onClick={() => save.mutate()}
-        >
-          Save general settings
-        </Button>
-      </CardContent>
+      </CardHeader>
+      {editing ? (
+        <CardContent className="grid gap-4 md:grid-cols-2">
+          <Field
+            label="System name"
+            value={form.system_name}
+            onChange={(v) => set("system_name", v)}
+          />
+          <div className="space-y-2">
+            <Label>Font family</Label>
+            <Select value={form.font_family} onValueChange={(v) => set("font_family", v)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[
+                  "Inter",
+                  "Roboto",
+                  "Arial",
+                  "Georgia",
+                  "Verdana",
+                  "Trebuchet MS",
+                  "Times New Roman",
+                  "Courier New",
+                ].map((font) => (
+                  <SelectItem key={font} value={font}>
+                    {font}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Field
+            label="Primary color"
+            type="color"
+            value={form.primary_color}
+            onChange={(v) => set("primary_color", v)}
+          />
+          <Field
+            label="Accent color"
+            type="color"
+            value={form.accent_color}
+            onChange={(v) => set("accent_color", v)}
+          />
+          <ImageUpload
+            label="System logo"
+            value={form.logo_url}
+            onChange={(v) => set("logo_url", v)}
+            accept="image/png,image/jpeg,image/webp,image/svg+xml"
+          />
+          <ImageUpload
+            label="Browser icon"
+            value={form.icon_url}
+            onChange={(v) => set("icon_url", v)}
+            accept="image/png,image/x-icon,image/svg+xml"
+          />
+          <Button
+            className="md:col-span-2 md:w-fit"
+            disabled={save.isPending}
+            onClick={() => save.mutate()}
+          >
+            Save general settings
+          </Button>
+        </CardContent>
+      ) : (
+        <CardContent>
+          <div className="flex items-center gap-3">
+            {form.logo_url ? (
+              <img
+                src={form.logo_url}
+                alt="Current logo"
+                className="h-12 w-28 object-contain object-left"
+              />
+            ) : null}
+            <div>
+              <p className="font-semibold">{form.system_name}</p>
+              <p className="text-sm text-muted-foreground">
+                {form.font_family} · {form.primary_color}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      )}
     </Card>
   );
 }
@@ -428,106 +630,8 @@ function ImageUpload({
   );
 }
 
-function EmailTab({
-  configured,
-  refresh,
-}: {
-  configured: {
-    googleId: boolean;
-    googleSecret: boolean;
-    microsoftId: boolean;
-    microsoftSecret: boolean;
-  };
-  refresh: () => void;
-}) {
-  const [form, setForm] = useState({
-    google_oauth_client_id: "",
-    google_oauth_client_secret: "",
-    microsoft_oauth_client_id: "",
-    microsoft_oauth_client_secret: "",
-  });
-  const save = useMutation({
-    mutationFn: () => saveProviderSecrets({ data: form }),
-    onSuccess: () => {
-      toast.success("Provider credentials saved securely.");
-      refresh();
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-  const set = (key: keyof typeof form, value: string) =>
-    setForm((old) => ({ ...old, [key]: value }));
-  return (
-    <div className="grid gap-5 lg:grid-cols-2">
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Google Workspace / Gmail</CardTitle>
-            <Badge
-              variant={configured.googleId && configured.googleSecret ? "default" : "secondary"}
-            >
-              {configured.googleId && configured.googleSecret ? "Configured" : "Not configured"}
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Field
-            label="OAuth client ID"
-            value={form.google_oauth_client_id}
-            onChange={(v) => set("google_oauth_client_id", v)}
-          />
-          <Field
-            label="OAuth client secret"
-            type="password"
-            value={form.google_oauth_client_secret}
-            onChange={(v) => set("google_oauth_client_secret", v)}
-          />
-          <Button variant="outline" asChild>
-            <a href="/api/oauth/google/start">Connect Google account</a>
-          </Button>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Microsoft 365 / Outlook</CardTitle>
-            <Badge
-              variant={
-                configured.microsoftId && configured.microsoftSecret ? "default" : "secondary"
-              }
-            >
-              {configured.microsoftId && configured.microsoftSecret
-                ? "Configured"
-                : "Not configured"}
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Field
-            label="Application (client) ID"
-            value={form.microsoft_oauth_client_id}
-            onChange={(v) => set("microsoft_oauth_client_id", v)}
-          />
-          <Field
-            label="Client secret"
-            type="password"
-            value={form.microsoft_oauth_client_secret}
-            onChange={(v) => set("microsoft_oauth_client_secret", v)}
-          />
-          <Button variant="outline" asChild>
-            <a href="/api/oauth/microsoft/start">Connect Microsoft account</a>
-          </Button>
-        </CardContent>
-      </Card>
-      <div className="flex gap-3 lg:col-span-2">
-        <Button onClick={() => save.mutate()} disabled={save.isPending}>
-          {save.isPending ? "Saving…" : "Save provider credentials"}
-        </Button>
-      </div>
-      <div className="lg:col-span-2">
-        <MailboxSettings />
-      </div>
-    </div>
-  );
+function EmailTab({ setupRequired }: { setupRequired: boolean }) {
+  return <MailboxSettings setupRequired={setupRequired} />;
 }
 
 function AiTab({
@@ -539,6 +643,7 @@ function AiTab({
   configured: boolean;
   refresh: () => void;
 }) {
+  const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
     apiKey: "",
     model: initial["ai_model"] || "gpt-5",
@@ -563,6 +668,7 @@ function AiTab({
     },
     onSuccess: () => {
       toast.success("AI settings saved.");
+      setEditing(false);
       refresh();
       setForm((old) => ({ ...old, apiKey: "" }));
     },
@@ -581,57 +687,71 @@ function AiTab({
           <Badge variant={configured ? "default" : "secondary"}>
             {configured ? "API key configured" : "API key required"}
           </Badge>
+          <Button variant="outline" onClick={() => setEditing((value) => !value)}>
+            {editing ? "Cancel" : "Configure"}
+          </Button>
         </div>
       </CardHeader>
-      <CardContent className="space-y-5">
-        <div className="grid gap-5 md:grid-cols-2">
-          <Field
-            label="OpenAI API key"
-            type="password"
-            value={form.apiKey}
-            onChange={(v) => setForm((o) => ({ ...o, apiKey: v }))}
-            placeholder={configured ? "Leave blank to keep current key" : "sk-…"}
-          />
-          <div className="space-y-2">
-            <Label>Model</Label>
-            <Select value={form.model} onValueChange={(v) => setForm((o) => ({ ...o, model: v }))}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {[
-                  "gpt-5.6-luna",
-                  "gpt-5.6-terra",
-                  "gpt-5.4-mini",
-                  "gpt-5.4",
-                  "gpt-5",
-                  "gpt-4.1-mini",
-                ].map((model) => (
-                  <SelectItem key={model} value={model}>
-                    {model}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      {editing ? (
+        <CardContent className="space-y-5">
+          <div className="grid gap-5 md:grid-cols-2">
+            <Field
+              label="OpenAI API key"
+              type="password"
+              value={form.apiKey}
+              onChange={(v) => setForm((o) => ({ ...o, apiKey: v }))}
+              placeholder={configured ? "Leave blank to keep current key" : "sk-…"}
+            />
+            <div className="space-y-2">
+              <Label>Model</Label>
+              <Select
+                value={form.model}
+                onValueChange={(v) => setForm((o) => ({ ...o, model: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[
+                    "gpt-5.6-luna",
+                    "gpt-5.6-terra",
+                    "gpt-5.4-mini",
+                    "gpt-5.4",
+                    "gpt-5",
+                    "gpt-4.1-mini",
+                  ].map((model) => (
+                    <SelectItem key={model} value={model}>
+                      {model}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Field
+              label="API base URL"
+              value={form.baseUrl}
+              onChange={(v) => setForm((o) => ({ ...o, baseUrl: v }))}
+            />
           </div>
-          <Field
-            label="API base URL"
-            value={form.baseUrl}
-            onChange={(v) => setForm((o) => ({ ...o, baseUrl: v }))}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label>Predefined research context and guardrails</Label>
-          <Textarea
-            rows={7}
-            value={form.context}
-            onChange={(e) => setForm((o) => ({ ...o, context: e.target.value }))}
-          />
-        </div>
-        <Button onClick={() => save.mutate()} disabled={save.isPending}>
-          Save AI configuration
-        </Button>
-      </CardContent>
+          <div className="space-y-2">
+            <Label>Predefined research context and guardrails</Label>
+            <Textarea
+              rows={7}
+              value={form.context}
+              onChange={(e) => setForm((o) => ({ ...o, context: e.target.value }))}
+            />
+          </div>
+          <Button onClick={() => save.mutate()} disabled={save.isPending}>
+            Save AI configuration
+          </Button>
+        </CardContent>
+      ) : (
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            Model: {form.model} · {configured ? "Connected" : "Not connected"}
+          </p>
+        </CardContent>
+      )}
     </Card>
   );
 }
@@ -650,6 +770,7 @@ function TemplatesTab({
   }>;
   refresh: () => void;
 }) {
+  const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({
     name: "",
     event_key: "",
@@ -664,6 +785,7 @@ function TemplatesTab({
     },
     onSuccess: () => {
       toast.success("Email template saved.");
+      setCreating(false);
       setForm({ name: "", event_key: "", subject: "", body_html: "", is_active: true });
       refresh();
     },
@@ -671,54 +793,62 @@ function TemplatesTab({
   });
   return (
     <>
-      <div className="grid gap-5 lg:grid-cols-[1fr_1.3fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle>Create or replace a template</CardTitle>
-            <CardDescription>
-              Use placeholders such as {"{{first_name}}"}, {"{{company}}"} and {"{{system_name}}"}.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Field
-              label="Template name"
-              value={form.name}
-              onChange={(v) => setForm((o) => ({ ...o, name: v }))}
-            />
-            <Field
-              label="Event key"
-              value={form.event_key}
-              onChange={(v) => setForm((o) => ({ ...o, event_key: v }))}
-              placeholder="campaign.follow_up"
-            />
-            <Field
-              label="Subject"
-              value={form.subject}
-              onChange={(v) => setForm((o) => ({ ...o, subject: v }))}
-            />
-            <div className="space-y-2">
-              <Label>HTML body</Label>
-              <Textarea
-                rows={8}
-                value={form.body_html}
-                onChange={(e) => setForm((o) => ({ ...o, body_html: e.target.value }))}
+      <div className="space-y-4">
+        <div className="flex justify-end">
+          <Button onClick={() => setCreating((value) => !value)}>
+            {creating ? "Cancel" : "Create template"}
+          </Button>
+        </div>
+        {creating ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Create or replace a template</CardTitle>
+              <CardDescription>
+                Use placeholders such as {"{{first_name}}"}, {"{{company}}"} and {"{{system_name}}"}
+                .
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Field
+                label="Template name"
+                value={form.name}
+                onChange={(v) => setForm((o) => ({ ...o, name: v }))}
               />
-            </div>
-            <div className="flex items-center gap-3">
-              <Switch
-                checked={form.is_active}
-                onCheckedChange={(v) => setForm((o) => ({ ...o, is_active: v }))}
+              <Field
+                label="Event key"
+                value={form.event_key}
+                onChange={(v) => setForm((o) => ({ ...o, event_key: v }))}
+                placeholder="campaign.follow_up"
               />
-              <Label>Active</Label>
-            </div>
-            <Button
-              onClick={() => save.mutate()}
-              disabled={!form.name || !form.event_key || !form.subject}
-            >
-              Save template
-            </Button>
-          </CardContent>
-        </Card>
+              <Field
+                label="Subject"
+                value={form.subject}
+                onChange={(v) => setForm((o) => ({ ...o, subject: v }))}
+              />
+              <div className="space-y-2">
+                <Label>HTML body</Label>
+                <Textarea
+                  rows={8}
+                  value={form.body_html}
+                  onChange={(e) => setForm((o) => ({ ...o, body_html: e.target.value }))}
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <Switch
+                  checked={form.is_active}
+                  onCheckedChange={(v) => setForm((o) => ({ ...o, is_active: v }))}
+                />
+                <Label>Active</Label>
+              </div>
+              <Button
+                onClick={() => save.mutate()}
+                disabled={!form.name || !form.event_key || !form.subject}
+              >
+                Save template
+              </Button>
+            </CardContent>
+          </Card>
+        ) : null}
         <div className="space-y-3">
           {templates.map((t) => (
             <Card key={t.id}>
@@ -746,7 +876,6 @@ function TemplatesTab({
           ) : null}
         </div>
       </div>
-      <EmailSignatureSettings />
     </>
   );
 }
@@ -758,6 +887,8 @@ function AccessTab({
   data: Awaited<ReturnType<typeof getSettingsOverview>>;
   refresh: () => void;
 }) {
+  const [addingUser, setAddingUser] = useState(false);
+  const [addingRole, setAddingRole] = useState(false);
   const [user, setUser] = useState({
     full_name: "",
     email: "",
@@ -790,6 +921,7 @@ function AccessTab({
       return;
     }
     toast.success("User added.");
+    setAddingUser(false);
     setUser({ full_name: "", email: "", role_id: "", status: "active", password: "" });
     refresh();
   };
@@ -801,6 +933,7 @@ function AccessTab({
       return;
     }
     toast.success("Role created.");
+    setAddingRole(false);
     setRole({ name: "", description: "" });
     refresh();
   };
@@ -848,57 +981,70 @@ function AccessTab({
     <div className="grid gap-5 xl:grid-cols-2">
       <Card>
         <CardHeader>
-          <CardTitle>System users</CardTitle>
-          <CardDescription>
-            Assign each person one role and an initial password. Active users can sign in
-            immediately.
-          </CardDescription>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <CardTitle>System users</CardTitle>
+              <CardDescription>
+                Assign each person one role and an initial password. Active users can sign in
+                immediately.
+              </CardDescription>
+            </div>
+            <Button variant="outline" onClick={() => setAddingUser((value) => !value)}>
+              {addingUser ? "Cancel" : "Add user"}
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field
-              label="Full name"
-              value={user.full_name}
-              onChange={(v) => setUser((o) => ({ ...o, full_name: v }))}
-            />
-            <Field
-              label="Email"
-              type="email"
-              value={user.email}
-              onChange={(v) => setUser((o) => ({ ...o, email: v }))}
-            />
-            <Field
-              label="Initial password"
-              type="password"
-              value={user.password}
-              placeholder="At least 10 characters"
-              onChange={(v) => setUser((o) => ({ ...o, password: v }))}
-            />
-            <div className="space-y-2">
-              <Label>Role</Label>
-              <Select
-                value={user.role_id}
-                onValueChange={(v) => setUser((o) => ({ ...o, role_id: v }))}
+          {addingUser ? (
+            <>
+              <div className="grid gap-3 rounded-xl border bg-muted/20 p-4 sm:grid-cols-2">
+                <Field
+                  label="Full name"
+                  value={user.full_name}
+                  onChange={(v) => setUser((o) => ({ ...o, full_name: v }))}
+                />
+                <Field
+                  label="Email"
+                  type="email"
+                  value={user.email}
+                  onChange={(v) => setUser((o) => ({ ...o, email: v }))}
+                />
+                <Field
+                  label="Initial password"
+                  type="password"
+                  value={user.password}
+                  placeholder="At least 10 characters"
+                  onChange={(v) => setUser((o) => ({ ...o, password: v }))}
+                />
+                <div className="space-y-2">
+                  <Label>Role</Label>
+                  <Select
+                    value={user.role_id}
+                    onValueChange={(v) => setUser((o) => ({ ...o, role_id: v }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {data.roles.map((r: { id: string; name: string }) => (
+                        <SelectItem key={r.id} value={r.id}>
+                          {r.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <Button
+                onClick={() => void addUser()}
+                disabled={
+                  !user.full_name || !user.email || !user.role_id || user.password.length < 10
+                }
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose role" />
-                </SelectTrigger>
-                <SelectContent>
-                  {data.roles.map((r: { id: string; name: string }) => (
-                    <SelectItem key={r.id} value={r.id}>
-                      {r.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <Button
-            onClick={() => void addUser()}
-            disabled={!user.full_name || !user.email || !user.role_id || user.password.length < 10}
-          >
-            Add user
-          </Button>
+                Add user
+              </Button>
+            </>
+          ) : null}
           <div className="divide-y rounded-xl border">
             {data.users.map(
               (u: {
@@ -960,25 +1106,36 @@ function AccessTab({
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>Roles and permissions</CardTitle>
-          <CardDescription>
-            RBAC policy catalogue for every protected module and action.
-          </CardDescription>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <CardTitle>Roles and permissions</CardTitle>
+              <CardDescription>
+                RBAC policy catalogue for every protected module and action.
+              </CardDescription>
+            </div>
+            <Button variant="outline" onClick={() => setAddingRole((value) => !value)}>
+              {addingRole ? "Cancel" : "Create role"}
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Field
-            label="Role name"
-            value={role.name}
-            onChange={(v) => setRole((o) => ({ ...o, name: v }))}
-          />
-          <Field
-            label="Description"
-            value={role.description}
-            onChange={(v) => setRole((o) => ({ ...o, description: v }))}
-          />
-          <Button onClick={() => void addRole()} disabled={!role.name}>
-            Create role
-          </Button>
+          {addingRole ? (
+            <div className="space-y-4 rounded-xl border bg-muted/20 p-4">
+              <Field
+                label="Role name"
+                value={role.name}
+                onChange={(v) => setRole((o) => ({ ...o, name: v }))}
+              />
+              <Field
+                label="Description"
+                value={role.description}
+                onChange={(v) => setRole((o) => ({ ...o, description: v }))}
+              />
+              <Button onClick={() => void addRole()} disabled={!role.name}>
+                Create role
+              </Button>
+            </div>
+          ) : null}
           {data.roles.map(
             (r: { id: string; name: string; description: string | null; is_system: boolean }) => (
               <div key={r.id} className="rounded-xl border p-4">

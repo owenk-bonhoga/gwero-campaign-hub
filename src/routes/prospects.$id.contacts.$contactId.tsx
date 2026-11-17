@@ -332,7 +332,16 @@ function ProspectContactPage() {
               {!mailboxes.length ? (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
                   No sending account is configured. Add SMTP, Gmail or Microsoft 365 in{" "}
-                  <Link to="/settings" className="font-semibold underline">
+                  <Link
+                    to="/settings"
+                    search={{
+                      tab: undefined,
+                      setup: undefined,
+                      connected: undefined,
+                      error: undefined,
+                    }}
+                    className="font-semibold underline"
+                  >
                     Settings
                   </Link>{" "}
                   before sending email.
