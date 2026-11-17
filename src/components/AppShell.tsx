@@ -138,6 +138,15 @@ export function AppShell({
 }) {
   const qc = useQueryClient();
   const { data: auth } = useQuery({ queryKey: ["auth-status"], queryFn: () => getAuthStatus() });
+  useEffect(() => {
+    if (!auth?.user || !auth.emailSetupRequired) return;
+    const onRequiredSetup =
+      window.location.pathname === "/settings" &&
+      new URLSearchParams(window.location.search).get("setup") === "required";
+    if (onRequiredSetup) return;
+    const next = `${window.location.pathname}${window.location.search}`;
+    window.location.replace(`/settings?tab=email&setup=required&next=${encodeURIComponent(next)}`);
+  }, [auth]);
   const { data: notifications = [] } = useQuery({
     queryKey: ["notifications"],
     queryFn: () => getNotifications(),

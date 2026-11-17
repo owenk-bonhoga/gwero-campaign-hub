@@ -26,6 +26,7 @@ type Currency = {
 
 export function CurrencySettings() {
   const qc = useQueryClient();
+  const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ code: "", name: "", symbol: "", isDefault: false });
   const { data } = useQuery({
     queryKey: ["opportunity-dependencies"],
@@ -36,6 +37,7 @@ export function CurrencySettings() {
     mutationFn: () => saveCurrency({ data: form }),
     onSuccess: () => {
       toast.success("Currency saved.");
+      setCreating(false);
       setForm({ code: "", name: "", symbol: "", isDefault: false });
       refresh();
     },
@@ -56,46 +58,56 @@ export function CurrencySettings() {
     onError: (e: Error) => toast.error(e.message),
   });
   return (
-    <div className="grid gap-5 lg:grid-cols-[380px_1fr]">
-      <Card>
-        <CardHeader>
-          <CardTitle>Add currency</CardTitle>
-          <CardDescription>
-            These currencies become the dropdown choices throughout commercial modules.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Field
-            label="Code"
-            value={form.code}
-            onChange={(code) => setForm((v) => ({ ...v, code }))}
-            placeholder="MWK"
-          />
-          <Field
-            label="Name"
-            value={form.name}
-            onChange={(name) => setForm((v) => ({ ...v, name }))}
-            placeholder="Malawian Kwacha"
-          />
-          <Field
-            label="Symbol"
-            value={form.symbol}
-            onChange={(symbol) => setForm((v) => ({ ...v, symbol }))}
-            placeholder="MK"
-          />
-          <label className="flex items-center gap-2 text-sm">
-            <Checkbox
-              checked={form.isDefault}
-              onCheckedChange={(checked) => setForm((v) => ({ ...v, isDefault: checked === true }))}
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button onClick={() => setCreating((value) => !value)}>
+          <Plus className="mr-2 size-4" />
+          {creating ? "Cancel" : "Add currency"}
+        </Button>
+      </div>
+      {creating ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Add currency</CardTitle>
+            <CardDescription>
+              These currencies become the dropdown choices throughout commercial modules.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Field
+              label="Code"
+              value={form.code}
+              onChange={(code) => setForm((v) => ({ ...v, code }))}
+              placeholder="MWK"
             />
-            Use as default currency
-          </label>
-          <Button onClick={() => save.mutate()} disabled={save.isPending}>
-            <Plus className="mr-2 size-4" />
-            Add currency
-          </Button>
-        </CardContent>
-      </Card>
+            <Field
+              label="Name"
+              value={form.name}
+              onChange={(name) => setForm((v) => ({ ...v, name }))}
+              placeholder="Malawian Kwacha"
+            />
+            <Field
+              label="Symbol"
+              value={form.symbol}
+              onChange={(symbol) => setForm((v) => ({ ...v, symbol }))}
+              placeholder="MK"
+            />
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox
+                checked={form.isDefault}
+                onCheckedChange={(checked) =>
+                  setForm((v) => ({ ...v, isDefault: checked === true }))
+                }
+              />
+              Use as default currency
+            </label>
+            <Button onClick={() => save.mutate()} disabled={save.isPending}>
+              <Plus className="mr-2 size-4" />
+              Add currency
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
       <Card>
         <CardHeader>
           <CardTitle>Configured currencies</CardTitle>

@@ -11,12 +11,27 @@ import { permissionMiddleware } from "./auth.middleware";
 
 export const getAuthStatus = createServerFn({ method: "GET" }).handler(async () => {
   const { getPool } = await import("./db.server");
-  const [rows] = await getPool().query(
+  const db = getPool();
+  const [rows] = await db.query(
     "SELECT COUNT(*) AS total FROM system_users WHERE password_hash IS NOT NULL",
   );
+  const user = await currentUser();
+  let emailSetupRequired = false;
+  if (user) {
+    const [mailboxes] = await db.execute(
+      `SELECT COUNT(*) AS total
+         FROM mailboxes m
+         JOIN mailbox_access ma ON ma.mailbox_id = m.id AND ma.user_id = ?
+        WHERE m.created_by = ? AND ma.can_send = TRUE
+          AND (m.provider <> 'smtp' OR m.last_status LIKE 'Sending (SMTP) works%')`,
+      [user.id, user.id],
+    );
+    emailSetupRequired = Number((mailboxes as Array<{ total: number }>)[0]?.total || 0) === 0;
+  }
   return {
-    user: await currentUser(),
+    user,
     bootstrapRequired: Number((rows as Array<{ total: number }>)[0]?.total || 0) === 0,
+    emailSetupRequired,
   };
 });
 

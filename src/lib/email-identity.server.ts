@@ -41,13 +41,11 @@ export async function requireMailboxAccess(
     `SELECT m.*, ma.can_send, ma.can_manage, ma.is_default, ma.active_signature_id
        FROM mailboxes m
        LEFT JOIN mailbox_access ma ON ma.mailbox_id = m.id AND ma.user_id = ?
-      WHERE m.id = ? AND (
-        m.created_by = ? OR ma.user_id IS NOT NULL OR (m.created_by IS NULL AND ? = 1)
-      ) LIMIT 1`,
-    [user.id, mailboxId, user.id, user.roleName === "Administrator" ? 1 : 0],
+      WHERE m.id = ? AND (m.created_by = ? OR ma.user_id IS NOT NULL) LIMIT 1`,
+    [user.id, mailboxId, user.id],
   );
   const mailbox = (rows as AccessibleMailbox[])[0];
-  if (!mailbox || (manage && mailbox["created_by"] !== user.id && !mailbox["can_manage"]))
+  if (!mailbox || (manage && mailbox["created_by"] !== user.id))
     throw new Error(
       manage ? "You cannot manage this sending account." : "Sending account unavailable.",
     );
