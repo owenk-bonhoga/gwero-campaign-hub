@@ -21,6 +21,8 @@ test("sensitive modules and unknown tables fail closed", () => {
     requiredTablePermission("opportunity_comment_mentions", "insert"),
     "opportunities.manage",
   );
+  assert.equal(requiredTablePermission("page_note_comments", "insert"), "notes.manage");
+  assert.equal(requiredTablePermission("page_note_comment_mentions", "delete"), "notes.manage");
   for (const table of ["mailbox_secrets", "auth_sessions", "__proto__", "constructor", "new_table"])
     assert.throws(() => requiredTablePermission(table, "select"));
   assert.throws(() => requiredTablePermission("prospects", "execute"));

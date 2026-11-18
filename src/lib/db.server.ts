@@ -809,6 +809,18 @@ const fields: Record<TableName, string[]> = {
     "updated_at",
   ],
   page_note_mentions: ["note_id", "user_id", "created_at"],
+  page_note_comments: [
+    "id",
+    "note_id",
+    "parent_id",
+    "body",
+    "color",
+    "created_by",
+    "updated_by",
+    "created_at",
+    "updated_at",
+  ],
+  page_note_comment_mentions: ["comment_id", "user_id", "created_at"],
   ai_prospect_searches: ["id", "prompt", "search_context", "results_json", "status", "created_at"],
 };
 const jsonFields: Record<string, string[]> = {
@@ -892,6 +904,8 @@ const publicTables = new Set<TableName>([
   "prospect_interactions",
   "page_notes",
   "page_note_mentions",
+  "page_note_comments",
+  "page_note_comment_mentions",
   "ai_prospect_searches",
 ]);
 let pool: Pool | undefined;
