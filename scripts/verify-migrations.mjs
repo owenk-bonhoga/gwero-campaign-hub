@@ -30,6 +30,8 @@ const requiredTables = [
   "cost_sheet_supplier_quotes",
   "organization_locations",
   "opportunity_comment_mentions",
+  "page_note_comments",
+  "page_note_comment_mentions",
   "schema_migrations",
   "security_login_limits",
   "supplier_quotes",

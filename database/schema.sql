@@ -1090,6 +1090,29 @@ CREATE TABLE IF NOT EXISTS page_note_mentions (
   CONSTRAINT page_note_mentions_user_fk FOREIGN KEY (user_id) REFERENCES system_users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS page_note_comments (
+  id CHAR(36) PRIMARY KEY, note_id CHAR(36) NOT NULL, parent_id CHAR(36), body TEXT NOT NULL,
+  color VARCHAR(30) NOT NULL DEFAULT 'yellow', created_by CHAR(36) NOT NULL,
+  updated_by CHAR(36) NOT NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  KEY page_note_comments_note (note_id, created_at),
+  KEY page_note_comments_parent (parent_id, created_at),
+  CONSTRAINT page_note_comments_note_fk FOREIGN KEY (note_id) REFERENCES page_notes(id) ON DELETE CASCADE,
+  CONSTRAINT page_note_comments_parent_fk FOREIGN KEY (parent_id) REFERENCES page_note_comments(id) ON DELETE CASCADE,
+  CONSTRAINT page_note_comments_creator_fk FOREIGN KEY (created_by) REFERENCES system_users(id) ON DELETE CASCADE,
+  CONSTRAINT page_note_comments_updater_fk FOREIGN KEY (updated_by) REFERENCES system_users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS page_note_comment_mentions (
+  comment_id CHAR(36) NOT NULL, user_id CHAR(36) NOT NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (comment_id, user_id),
+  KEY page_note_comment_mentions_user (user_id, created_at),
+  CONSTRAINT page_note_comment_mentions_comment_fk FOREIGN KEY (comment_id) REFERENCES page_note_comments(id) ON DELETE CASCADE,
+  CONSTRAINT page_note_comment_mentions_user_fk FOREIGN KEY (user_id) REFERENCES system_users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS attachment_files (
   id CHAR(36) PRIMARY KEY, owner_id CHAR(36) NOT NULL, file_name VARCHAR(500) NOT NULL,
   content_type VARCHAR(255) NOT NULL, file_size INT UNSIGNED NOT NULL, content LONGBLOB NOT NULL,

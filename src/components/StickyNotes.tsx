@@ -7,9 +7,12 @@ import {
   GripHorizontal,
   Loader2,
   Maximize2,
+  MessageCircle,
   Pin,
   PinOff,
   Plus,
+  Reply,
+  Send,
   StickyNote,
   Trash2,
   Users,
@@ -18,13 +21,17 @@ import {
 import { toast } from "sonner";
 import {
   createStickyNote,
+  createStickyNoteComment,
+  deleteStickyNoteComment,
   deleteStickyNote,
   getStickyNotes,
   getStickyNoteUsers,
   updateStickyNote,
   updateStickyNoteLayout,
   type StickyNote as StickyNoteRecord,
+  type StickyNoteComment,
 } from "@/lib/sticky-notes.functions";
+import { buildStickyNoteCommentTree, type StickyNoteCommentNode } from "@/lib/sticky-note-comments";
 import { ConfirmAction } from "@/components/ConfirmAction";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -52,6 +59,7 @@ const colours = {
 } as const;
 
 type Colour = keyof typeof colours;
+type NoteUser = { id: string; full_name: string; email: string };
 const emptyForm = {
   title: "",
   body: "",
@@ -67,6 +75,18 @@ function initials(name: string) {
     .map((part) => part.charAt(0))
     .join("")
     .toUpperCase();
+}
+
+function findMentionTrigger(value: string, cursor: number | null) {
+  if (cursor === null) return null;
+  const beforeCursor = value.slice(0, cursor);
+  const start = beforeCursor.lastIndexOf("@");
+  if (start < 0 || beforeCursor.slice(start + 1).includes("\n")) return null;
+  const preceding = start > 0 ? beforeCursor[start - 1] : "";
+  if (preceding && !/[\s([{,:;]/.test(preceding)) return null;
+  const query = beforeCursor.slice(start + 1);
+  if (query.length > 80) return null;
+  return { start, query };
 }
 
 type NoteLayout = {
@@ -265,7 +285,7 @@ function LiveStickyNote({
         {note.can_edit ? (
           <ConfirmAction
             title="Delete this sticky note?"
-            description="It will be permanently removed for everyone who can view this page."
+            description="The note and its entire reply thread will be permanently removed for everyone."
             onConfirm={onDelete}
             trigger={
               <button
@@ -314,6 +334,395 @@ function LiveStickyNote({
   );
 }
 
+function CommentComposer({
+  noteId,
+  parentId,
+  replyingTo,
+  users,
+  onSaved,
+  onCancel,
+}: {
+  noteId: string;
+  parentId?: string;
+  replyingTo?: string;
+  users: NoteUser[];
+  onSaved: () => Promise<unknown> | unknown;
+  onCancel?: () => void;
+}) {
+  const [body, setBody] = useState("");
+  const [color, setColor] = useState<Colour>("yellow");
+  const [mentions, setMentions] = useState<string[]>([]);
+  const [showPeople, setShowPeople] = useState(false);
+  const [mentionTrigger, setMentionTrigger] = useState<{ start: number; query: string } | null>(
+    null,
+  );
+  const [mentionIndex, setMentionIndex] = useState(0);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const mentionSuggestions = useMemo(() => {
+    if (!mentionTrigger) return [];
+    const query = mentionTrigger.query.trim().toLowerCase();
+    return users
+      .filter(
+        (user) =>
+          !query ||
+          user.full_name.toLowerCase().includes(query) ||
+          user.email.toLowerCase().includes(query),
+      )
+      .slice(0, 6);
+  }, [mentionTrigger, users]);
+  const chooseMention = (user: NoteUser) => {
+    if (!mentionTrigger) return;
+    const textarea = textareaRef.current;
+    const cursor = textarea?.selectionStart ?? body.length;
+    const inserted = `@${user.full_name} `;
+    const nextBody = body.slice(0, mentionTrigger.start) + inserted + body.slice(cursor);
+    const nextCursor = mentionTrigger.start + inserted.length;
+    setBody(nextBody);
+    setMentions((current) => (current.includes(user.id) ? current : [...current, user.id]));
+    setMentionTrigger(null);
+    setMentionIndex(0);
+    requestAnimationFrame(() => {
+      textarea?.focus();
+      textarea?.setSelectionRange(nextCursor, nextCursor);
+    });
+  };
+  const save = useMutation({
+    mutationFn: () =>
+      createStickyNoteComment({
+        data: { noteId, parentId: parentId || null, body, color, mentionIds: mentions },
+      }),
+    onSuccess: async (result) => {
+      const sent = result.email?.sent || 0;
+      if (sent)
+        toast.success(
+          `Reply added and emailed to ${sent} tagged ${sent === 1 ? "user" : "users"}.`,
+        );
+      else if (result.email?.failed || result.email?.skipped)
+        toast.warning("Reply added. A mention email is queued for automatic retry.");
+      else toast.success("Reply added.");
+      setBody("");
+      setMentions([]);
+      setShowPeople(false);
+      await onSaved();
+      onCancel?.();
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  return (
+    <div className="rounded-xl border bg-white/90 p-3 shadow-sm">
+      {replyingTo ? (
+        <div className="mb-2 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+          <span className="flex min-w-0 items-center gap-1.5">
+            <Reply className="size-3.5 shrink-0" /> Replying to {replyingTo}
+          </span>
+          <Button type="button" variant="ghost" size="sm" className="h-7" onClick={onCancel}>
+            Cancel
+          </Button>
+        </div>
+      ) : null}
+      <div className="relative">
+        <Textarea
+          ref={textareaRef}
+          rows={3}
+          value={body}
+          maxLength={5000}
+          onChange={(event) => {
+            setBody(event.target.value);
+            setMentionTrigger(findMentionTrigger(event.target.value, event.target.selectionStart));
+            setMentionIndex(0);
+          }}
+          onClick={(event) =>
+            setMentionTrigger(
+              findMentionTrigger(event.currentTarget.value, event.currentTarget.selectionStart),
+            )
+          }
+          onKeyDown={(event) => {
+            if (!mentionTrigger || !mentionSuggestions.length) return;
+            if (event.key === "ArrowDown") {
+              event.preventDefault();
+              setMentionIndex((current) => (current + 1) % mentionSuggestions.length);
+            } else if (event.key === "ArrowUp") {
+              event.preventDefault();
+              setMentionIndex(
+                (current) => (current - 1 + mentionSuggestions.length) % mentionSuggestions.length,
+              );
+            } else if (event.key === "Enter" || event.key === "Tab") {
+              event.preventDefault();
+              const suggestion = mentionSuggestions[mentionIndex] || mentionSuggestions[0];
+              if (suggestion) chooseMention(suggestion);
+            } else if (event.key === "Escape") {
+              event.preventDefault();
+              setMentionTrigger(null);
+            }
+          }}
+          placeholder="Write a reply. Type @ to tag someone…"
+          className="min-h-20 resize-y bg-white"
+        />
+        {mentionTrigger && mentionSuggestions.length ? (
+          <div className="absolute inset-x-0 top-full z-50 mt-1 max-h-44 overflow-y-auto rounded-lg border bg-popover p-1 text-popover-foreground shadow-xl">
+            {mentionSuggestions.map((user, index) => (
+              <button
+                key={user.id}
+                type="button"
+                className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left ${index === mentionIndex ? "bg-accent" : "hover:bg-muted"}`}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => chooseMention(user)}
+              >
+                <Avatar className="size-7 shrink-0">
+                  <AvatarFallback className="text-[10px]">
+                    {initials(user.full_name)}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-xs font-medium">{user.full_name}</span>
+                  <span className="block truncate text-[10px] text-muted-foreground">
+                    {user.email}
+                  </span>
+                </span>
+                {mentions.includes(user.id) ? <Badge variant="secondary">Tagged</Badge> : null}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+      {showPeople ? (
+        <div className="gwero-scrollbar mt-2 max-h-36 overflow-y-auto rounded-lg border bg-white p-1">
+          {users.map((user) => (
+            <label
+              key={user.id}
+              className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted"
+            >
+              <Checkbox
+                checked={mentions.includes(user.id)}
+                onCheckedChange={(checked) =>
+                  setMentions((current) =>
+                    checked
+                      ? [...new Set([...current, user.id])]
+                      : current.filter((id) => id !== user.id),
+                  )
+                }
+              />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-xs font-medium">{user.full_name}</span>
+                <span className="block truncate text-[11px] text-muted-foreground">
+                  {user.email}
+                </span>
+              </span>
+            </label>
+          ))}
+        </div>
+      ) : null}
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-1" aria-label="Reply colour">
+          {(Object.keys(colours) as Colour[]).map((item) => (
+            <button
+              key={item}
+              type="button"
+              aria-label={`${item} reply`}
+              className={`size-5 rounded-full border ${colours[item]} ${color === item ? "ring-2 ring-primary ring-offset-1" : ""}`}
+              onClick={() => setColor(item)}
+            />
+          ))}
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-8"
+          onClick={() => setShowPeople((current) => !current)}
+        >
+          <Users className="mr-1 size-3.5" />
+          {mentions.length ? `${mentions.length} tagged` : "Tag people"}
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          className="ml-auto h-8"
+          disabled={!body.trim() || save.isPending}
+          onClick={() => save.mutate()}
+        >
+          {save.isPending ? (
+            <Loader2 className="mr-1 size-3.5 animate-spin" />
+          ) : (
+            <Send className="mr-1 size-3.5" />
+          )}
+          Reply
+        </Button>
+      </div>
+      {mentions.length ? (
+        <p className="mt-1.5 text-[11px] text-muted-foreground">
+          Tagged people receive an in-app notification and email.
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function ThreadedComment({
+  comment,
+  depth,
+  replyingTo,
+  setReplyingTo,
+  users,
+  onChanged,
+  onDelete,
+}: {
+  comment: StickyNoteCommentNode;
+  depth: number;
+  replyingTo: string | null;
+  setReplyingTo: (id: string | null) => void;
+  users: NoteUser[];
+  onChanged: () => Promise<unknown> | unknown;
+  onDelete: (comment: StickyNoteComment) => Promise<unknown>;
+}) {
+  return (
+    <div
+      className={
+        depth > 0 && depth <= 4 ? "ml-3 border-l border-slate-200 pl-3 sm:ml-5 sm:pl-4" : ""
+      }
+    >
+      <article
+        id={`note-comment-${comment.id}`}
+        className={`rounded-lg border p-3 ${colours[comment.color as Colour] || colours.yellow}`}
+      >
+        <div className="flex items-start gap-2">
+          <Avatar className="size-7 shrink-0 border border-black/10 bg-white/70">
+            <AvatarFallback className="text-[10px]">
+              {initials(comment.created_by_name)}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+              <span className="truncate text-xs font-semibold">{comment.created_by_name}</span>
+              <time className="text-[10px] opacity-60">
+                {new Date(comment.created_at).toLocaleString()}
+              </time>
+            </div>
+            <p className="mt-1 whitespace-pre-wrap text-sm leading-5">{comment.body}</p>
+            {comment.mentions.length ? (
+              <div className="mt-2 flex flex-wrap gap-1">
+                {comment.mentions.map((mention) => (
+                  <span
+                    key={mention.id}
+                    className="rounded-full bg-white/60 px-2 py-0.5 text-[10px] font-medium"
+                  >
+                    @{mention.full_name}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+            <div className="mt-2 flex items-center gap-1">
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-7 px-2 text-xs"
+                onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
+              >
+                <Reply className="mr-1 size-3" /> Reply
+              </Button>
+              {comment.can_edit ? (
+                <ConfirmAction
+                  title="Delete this reply?"
+                  description="This reply and every reply beneath it will be permanently deleted."
+                  onConfirm={() => onDelete(comment)}
+                  trigger={
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 px-2 text-xs text-rose-700"
+                    >
+                      <Trash2 className="mr-1 size-3" /> Delete
+                    </Button>
+                  }
+                />
+              ) : null}
+            </div>
+          </div>
+        </div>
+      </article>
+      {replyingTo === comment.id ? (
+        <div className="mt-2">
+          <CommentComposer
+            noteId={comment.note_id}
+            parentId={comment.id}
+            replyingTo={comment.created_by_name}
+            users={users}
+            onSaved={onChanged}
+            onCancel={() => setReplyingTo(null)}
+          />
+        </div>
+      ) : null}
+      {comment.children.length ? (
+        <div className="mt-2 space-y-2">
+          {comment.children.map((child) => (
+            <ThreadedComment
+              key={child.id}
+              comment={child}
+              depth={depth + 1}
+              replyingTo={replyingTo}
+              setReplyingTo={setReplyingTo}
+              users={users}
+              onChanged={onChanged}
+              onDelete={onDelete}
+            />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function NoteDiscussion({
+  note,
+  users,
+  onChanged,
+}: {
+  note: StickyNoteRecord;
+  users: NoteUser[];
+  onChanged: () => Promise<unknown> | unknown;
+}) {
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const tree = useMemo(() => buildStickyNoteCommentTree(note.comments), [note.comments]);
+  const remove = useMutation({
+    mutationFn: (commentId: string) => deleteStickyNoteComment({ data: { commentId } }),
+    onSuccess: async () => {
+      toast.success("Reply thread deleted.");
+      setReplyingTo(null);
+      await onChanged();
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  return (
+    <div className="space-y-3 border-t border-black/10 pt-3">
+      <CommentComposer noteId={note.id} users={users} onSaved={onChanged} />
+      {tree.length ? (
+        <div className="space-y-2">
+          {tree.map((comment) => (
+            <ThreadedComment
+              key={comment.id}
+              comment={comment}
+              depth={0}
+              replyingTo={replyingTo}
+              setReplyingTo={setReplyingTo}
+              users={users}
+              onChanged={onChanged}
+              onDelete={(item) => remove.mutateAsync(item.id)}
+            />
+          ))}
+        </div>
+      ) : (
+        <p className="py-2 text-center text-xs text-muted-foreground">
+          No replies yet. Start the discussion.
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function StickyNotes() {
   const location = useLocation();
   const pageKey = location.pathname;
@@ -321,12 +730,14 @@ export function StickyNotes() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [focused, setFocused] = useState<string | null>(null);
+  const [expandedNotes, setExpandedNotes] = useState<Set<string>>(() => new Set());
   const [form, setForm] = useState(emptyForm);
   const [mentionTrigger, setMentionTrigger] = useState<{ start: number; query: string } | null>(
     null,
   );
   const [mentionIndex, setMentionIndex] = useState(0);
   const noteBodyRef = useRef<HTMLTextAreaElement>(null);
+  const scrolledCommentId = useRef<string | null>(null);
   const [pendingLayoutIds, setPendingLayoutIds] = useState<Set<string>>(() => new Set());
   const [deletingIds, setDeletingIds] = useState<Set<string>>(() => new Set());
   const layoutVersions = useRef(new Map<string, number>());
@@ -346,7 +757,22 @@ export function StickyNotes() {
     const noteId = new URLSearchParams(location.searchStr).get("note");
     if (!noteId) return;
     setFocused(noteId);
+    setExpandedNotes((current) => new Set(current).add(noteId));
+    setOpen(true);
   }, [location.searchStr]);
+
+  useEffect(() => {
+    if (!open || !notes.length) return;
+    const commentId = new URLSearchParams(location.searchStr).get("comment");
+    if (!commentId || scrolledCommentId.current === commentId) return;
+    const frame = requestAnimationFrame(() => {
+      const target = document.getElementById(`note-comment-${commentId}`);
+      if (!target) return;
+      scrolledCommentId.current = commentId;
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [location.searchStr, notes, open]);
 
   const reset = () => {
     setEditing(null);
@@ -513,18 +939,6 @@ export function StickyNotes() {
       .slice(0, 6);
   }, [mentionTrigger, users]);
 
-  const findMentionTrigger = (value: string, cursor: number | null) => {
-    if (cursor === null) return null;
-    const beforeCursor = value.slice(0, cursor);
-    const start = beforeCursor.lastIndexOf("@");
-    if (start < 0 || beforeCursor.slice(start + 1).includes("\n")) return null;
-    const preceding = start > 0 ? beforeCursor[start - 1] : "";
-    if (preceding && !/[\s([{,:;]/.test(preceding)) return null;
-    const query = beforeCursor.slice(start + 1);
-    if (query.length > 80) return null;
-    return { start, query };
-  };
-
   const chooseMention = (user: (typeof users)[number]) => {
     if (!mentionTrigger) return;
     const textarea = noteBodyRef.current;
@@ -607,12 +1021,13 @@ export function StickyNotes() {
             </DialogTitle>
             <DialogDescription>
               Shared notes stay where your team leaves them on this page. Mentioned users receive an
-              in-app notification and an immediate email with a link back to this note.
+              in-app notification and an immediate email. Open a discussion to reply in a nested
+              thread.
             </DialogDescription>
           </DialogHeader>
           <div className="grid min-h-0 flex-1 md:grid-cols-[minmax(0,1.25fr)_minmax(320px,.75fr)]">
             <div className="gwero-scrollbar min-h-0 overflow-y-auto border-b p-5 md:border-b-0 md:border-r">
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-4">
                 {notes.map((note) => (
                   <article
                     key={note.id}
@@ -648,7 +1063,24 @@ export function StickyNotes() {
                         ))}
                       </div>
                     ) : null}
-                    <div className="mt-4 flex flex-wrap justify-end gap-1 border-t border-black/10 pt-2">
+                    <div className="mt-4 flex flex-wrap items-center gap-1 border-t border-black/10 pt-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() =>
+                          setExpandedNotes((current) => {
+                            const next = new Set(current);
+                            if (next.has(note.id)) next.delete(note.id);
+                            else next.add(note.id);
+                            return next;
+                          })
+                        }
+                      >
+                        <MessageCircle className="mr-1 size-3.5" />
+                        {note.comments.length} {note.comments.length === 1 ? "reply" : "replies"}
+                      </Button>
+                      <span className="flex-1" />
                       <Button
                         type="button"
                         size="sm"
@@ -683,7 +1115,7 @@ export function StickyNotes() {
                           </Button>
                           <ConfirmAction
                             title="Delete this sticky note?"
-                            description="It will be removed for everyone who can view this page."
+                            description="The note and its entire reply thread will be permanently removed for everyone."
                             onConfirm={() => remove.mutateAsync(note.id)}
                             trigger={
                               <Button
@@ -699,6 +1131,15 @@ export function StickyNotes() {
                         </>
                       ) : null}
                     </div>
+                    {expandedNotes.has(note.id) ? (
+                      <div className="mt-3 rounded-xl bg-white/45 p-3">
+                        <NoteDiscussion
+                          note={note}
+                          users={users}
+                          onChanged={() => qc.invalidateQueries({ queryKey })}
+                        />
+                      </div>
+                    ) : null}
                   </article>
                 ))}
               </div>

@@ -66,6 +66,8 @@ export const tablePermissions: Readonly<Record<string, string>> = {
   portal_accounts: "accounts.manage",
   page_notes: "notes.manage",
   page_note_mentions: "notes.manage",
+  page_note_comments: "notes.manage",
+  page_note_comment_mentions: "notes.manage",
   organization_locations: "clients.manage",
   opportunity_checklist_items: "opportunities.manage",
   opportunity_documents: "opportunities.manage",

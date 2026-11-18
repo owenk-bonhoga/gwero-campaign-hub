@@ -859,6 +859,22 @@ export interface PageNoteMention {
   user_id: string;
   created_at: string;
 }
+export interface PageNoteComment {
+  id: string;
+  note_id: string;
+  parent_id: string | null;
+  body: string;
+  color: string;
+  created_by: string;
+  updated_by: string;
+  created_at: string;
+  updated_at: string;
+}
+export interface PageNoteCommentMention {
+  comment_id: string;
+  user_id: string;
+  created_at: string;
+}
 export interface AiProspectSearch {
   id: string;
   prompt: string;
@@ -874,6 +890,8 @@ export interface Tables {
   notification_preferences: NotificationPreference;
   page_notes: PageNote;
   page_note_mentions: PageNoteMention;
+  page_note_comments: PageNoteComment;
+  page_note_comment_mentions: PageNoteCommentMention;
   clients: Client;
   mailboxes: Mailbox;
   mailbox_secrets: MailboxSecret;

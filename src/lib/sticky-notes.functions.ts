@@ -21,6 +21,21 @@ export type StickyNote = {
   created_by_name: string;
   updated_at: string;
   mentions: Array<{ id: string; full_name: string; email: string }>;
+  comments: StickyNoteComment[];
+  can_edit: boolean;
+};
+
+export type StickyNoteComment = {
+  id: string;
+  note_id: string;
+  parent_id: string | null;
+  body: string;
+  color: string;
+  created_by: string;
+  created_by_name: string;
+  created_at: string;
+  updated_at: string;
+  mentions: Array<{ id: string; full_name: string; email: string }>;
   can_edit: boolean;
 };
 
@@ -61,6 +76,7 @@ async function notifyMentions({
   page,
   title,
   body,
+  commentId,
 }: {
   noteId: string;
   mentionIds: string[];
@@ -69,24 +85,27 @@ async function notifyMentions({
   page: string;
   title: string | null;
   body: string;
+  commentId?: string;
 }) {
   const { getPool } = await import("./db.server");
   const db = getPool();
-  const actionUrl = `${page}${page.includes("?") ? "&" : "?"}note=${encodeURIComponent(noteId)}`;
+  const actionUrl = `${page}${page.includes("?") ? "&" : "?"}note=${encodeURIComponent(noteId)}${commentId ? `&comment=${encodeURIComponent(commentId)}` : ""}`;
   const notificationIds: string[] = [];
   for (const userId of mentionIds.filter((id) => id !== actorId)) {
     const notificationId = randomUUID();
     await db.execute(
       `INSERT INTO notifications
         (id, user_id, notification_type, title, body, action_url, entity_type, entity_id)
-       SELECT ?, id, 'sticky_note.mention', ?, ?, ?, 'page_note', ?
+       SELECT ?, id, ?, ?, ?, ?, ?, ?
          FROM system_users WHERE id = ? AND status = 'active'`,
       [
         notificationId,
-        `${actorName} mentioned you in a sticky note`,
+        commentId ? "sticky_note.comment_mention" : "sticky_note.mention",
+        `${actorName} mentioned you in a sticky note${commentId ? " reply" : ""}`,
         `${title ? `${title}: ` : ""}${body}`.slice(0, 1000),
         actionUrl,
-        noteId,
+        commentId ? "page_note_comment" : "page_note",
+        commentId || noteId,
         userId,
       ],
     );
@@ -112,6 +131,13 @@ export const getStickyNotes = createServerFn({ method: "GET" })
     const notes = JSON.parse(JSON.stringify(noteRows)) as Array<Record<string, unknown>>;
     const ids = notes.map((note) => String(note["id"]));
     let mentions: Array<{ note_id: string; id: string; full_name: string; email: string }> = [];
+    let comments: Array<Record<string, unknown>> = [];
+    let commentMentions: Array<{
+      comment_id: string;
+      id: string;
+      full_name: string;
+      email: string;
+    }> = [];
     if (ids.length) {
       const [mentionRows] = await db.execute(
         `SELECT m.note_id, u.id, u.full_name, u.email
@@ -120,12 +146,40 @@ export const getStickyNotes = createServerFn({ method: "GET" })
         ids,
       );
       mentions = JSON.parse(JSON.stringify(mentionRows));
+      const [commentRows] = await db.execute(
+        `SELECT c.*, u.full_name AS created_by_name
+           FROM page_note_comments c JOIN system_users u ON u.id = c.created_by
+          WHERE c.note_id IN (${ids.map(() => "?").join(",")})
+          ORDER BY c.created_at, c.id`,
+        ids,
+      );
+      comments = JSON.parse(JSON.stringify(commentRows));
+      const commentIds = comments.map((comment) => String(comment["id"]));
+      if (commentIds.length) {
+        const [commentMentionRows] = await db.execute(
+          `SELECT m.comment_id, u.id, u.full_name, u.email
+             FROM page_note_comment_mentions m JOIN system_users u ON u.id = m.user_id
+            WHERE m.comment_id IN (${commentIds.map(() => "?").join(",")}) ORDER BY u.full_name`,
+          commentIds,
+        );
+        commentMentions = JSON.parse(JSON.stringify(commentMentionRows));
+      }
     }
     return notes.map((note) => ({
       ...note,
       is_pinned: Boolean(note["is_pinned"]),
       is_open: Boolean(note["is_open"]),
       mentions: mentions.filter((mention) => mention.note_id === note["id"]),
+      comments: comments
+        .filter((comment) => comment["note_id"] === note["id"])
+        .map((comment) => ({
+          ...comment,
+          mentions: commentMentions.filter((mention) => mention.comment_id === comment["id"]),
+          can_edit:
+            comment["created_by"] === context.user.id ||
+            note["created_by"] === context.user.id ||
+            context.user.permissions.includes("users.manage"),
+        })),
       can_edit:
         note["created_by"] === context.user.id || context.user.permissions.includes("users.manage"),
     })) as unknown as StickyNote[];
@@ -203,6 +257,103 @@ export const createStickyNote = createServerFn({ method: "POST" })
       body: input.body,
     });
     return { id, email };
+  });
+
+function cleanCommentInput(data: { body: string; color?: string; mentionIds?: string[] }) {
+  const body = data.body.trim();
+  if (!body) throw new Error("Write a reply first.");
+  if (body.length > 5000) throw new Error("A reply can contain up to 5,000 characters.");
+  return {
+    body,
+    color: colours.has(data.color || "") ? data.color! : "yellow",
+    mentionIds: [...new Set(data.mentionIds || [])].slice(0, 100),
+  };
+}
+
+export const createStickyNoteComment = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(
+    (data: {
+      noteId: string;
+      parentId?: string | null;
+      body: string;
+      color?: string;
+      mentionIds?: string[];
+    }) => data,
+  )
+  .handler(async ({ data, context }) => {
+    const input = cleanCommentInput(data);
+    const { getPool } = await import("./db.server");
+    const db = getPool();
+    const [noteRows] = await db.execute(
+      "SELECT id, page_key, title FROM page_notes WHERE id = ? LIMIT 1",
+      [data.noteId],
+    );
+    const note = (noteRows as Array<{ id: string; page_key: string; title: string | null }>)[0];
+    if (!note) throw new Error("Sticky note not found.");
+    if (data.parentId) {
+      const [parentRows] = await db.execute(
+        "SELECT id FROM page_note_comments WHERE id = ? AND note_id = ? LIMIT 1",
+        [data.parentId, data.noteId],
+      );
+      if (!(parentRows as unknown[]).length)
+        throw new Error("The reply you selected no longer exists.");
+    }
+    const id = randomUUID();
+    await db.execute(
+      `INSERT INTO page_note_comments
+        (id, note_id, parent_id, body, color, created_by, updated_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        id,
+        data.noteId,
+        data.parentId || null,
+        input.body,
+        input.color,
+        context.user.id,
+        context.user.id,
+      ],
+    );
+    for (const userId of input.mentionIds)
+      await db.execute(
+        "INSERT IGNORE INTO page_note_comment_mentions (comment_id, user_id) VALUES (?, ?)",
+        [id, userId],
+      );
+    const email = await notifyMentions({
+      noteId: data.noteId,
+      commentId: id,
+      mentionIds: input.mentionIds,
+      actorId: context.user.id,
+      actorName: context.user.fullName,
+      page: note.page_key,
+      title: note.title,
+      body: input.body,
+    });
+    return { id, email };
+  });
+
+export const deleteStickyNoteComment = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((data: { commentId: string }) => data)
+  .handler(async ({ data, context }) => {
+    const { getPool } = await import("./db.server");
+    const db = getPool();
+    const [rows] = await db.execute(
+      `SELECT c.created_by, n.created_by AS note_created_by
+         FROM page_note_comments c JOIN page_notes n ON n.id = c.note_id
+        WHERE c.id = ? LIMIT 1`,
+      [data.commentId],
+    );
+    const comment = (rows as Array<{ created_by: string; note_created_by: string }>)[0];
+    if (!comment) return { ok: true };
+    if (
+      comment.created_by !== context.user.id &&
+      comment.note_created_by !== context.user.id &&
+      !context.user.permissions.includes("users.manage")
+    )
+      throw new Error("Only the reply author, note author or an administrator can delete it.");
+    await db.execute("DELETE FROM page_note_comments WHERE id = ?", [data.commentId]);
+    return { ok: true };
   });
 
 export const updateStickyNote = createServerFn({ method: "POST" })
