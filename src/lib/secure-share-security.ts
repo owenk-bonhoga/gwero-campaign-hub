@@ -4,6 +4,18 @@ export const secureToken = () => randomBytes(32).toString("hex");
 export const secureTokenHash = (value: string) => createHash("sha256").update(value).digest("hex");
 export const secureOtp = () => String(randomInt(0, 1_000_000)).padStart(6, "0");
 
+export function secureShareSecret() {
+  const secret = process.env["SESSION_SECRET"] || "";
+  if (secret.length < 32) throw new Error("SESSION_SECRET must be configured for secure sharing.");
+  return secret;
+}
+
+export function safeSecretEqual(left: string, right: string) {
+  const first = createHash("sha256").update(left).digest();
+  const second = createHash("sha256").update(right).digest();
+  return timingSafeEqual(first, second);
+}
+
 export function secureOtpHash(code: string, sessionHash: string, secret: string) {
   if (secret.length < 32) throw new Error("SESSION_SECRET must be configured for secure sharing.");
   return createHmac("sha256", secret).update(`${sessionHash}:${code}`).digest("hex");

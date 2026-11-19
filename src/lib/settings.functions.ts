@@ -3,6 +3,30 @@ import { deadlineFetch } from "./request-deadline";
 import { createServerFn } from "@tanstack/react-start";
 import { getSecret, getSecretStatus, setSecret } from "./settings.server";
 import { authMiddleware, permissionMiddleware } from "./auth.middleware";
+import { trustedServiceUrl } from "./service-url-security";
+
+const editableSettings = new Set([
+  "system_name",
+  "primary_color",
+  "accent_color",
+  "font_family",
+  "logo_url",
+  "icon_url",
+  "bidaf_origin",
+  "bidaf_organisation_id",
+  "bidaf_country",
+  "ai_model",
+  "ai_base_url",
+  "ai_prospect_context",
+]);
+const providerSecretKeys = new Set([
+  "openai_api_key",
+  "google_oauth_client_id",
+  "google_oauth_client_secret",
+  "microsoft_oauth_client_id",
+  "microsoft_oauth_client_secret",
+  "bidaf_api_token",
+]);
 
 async function admin() {
   return (await import("./db.server")).serverDb;
@@ -104,6 +128,20 @@ export const saveSystemSettings = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const db = await admin();
     for (const [setting_key, setting_value] of Object.entries(data.values)) {
+      if (!editableSettings.has(setting_key))
+        throw new Error("This setting cannot be changed here.");
+      if (setting_key === "ai_base_url" && setting_value)
+        trustedServiceUrl(String(setting_value), {
+          label: "AI base URL",
+          defaultOrigins: ["https://api.openai.com"],
+          allowedOriginsEnv: "AI_ALLOWED_ORIGINS",
+        });
+      if (setting_key === "bidaf_origin" && setting_value)
+        trustedServiceUrl(String(setting_value), {
+          label: "BidAF origin",
+          defaultOrigins: ["https://bidaf.africa"],
+          allowedOriginsEnv: "BIDAF_ALLOWED_ORIGINS",
+        });
       const { error } = await db
         .from("system_settings")
         .upsert(
@@ -119,7 +157,10 @@ export const saveProviderSecrets = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("settings.manage")])
   .validator((data: Record<string, string>) => validateContract(data, "saveProviderSecrets"))
   .handler(async ({ data }) => {
-    for (const [key, value] of Object.entries(data)) await setSecret(key, value);
+    for (const [key, value] of Object.entries(data)) {
+      if (!providerSecretKeys.has(key)) throw new Error("This secret cannot be changed here.");
+      await setSecret(key, value);
+    }
     return { ok: true };
   });
 
@@ -171,43 +212,49 @@ export const discoverProspects = createServerFn({ method: "POST" })
       fit_reason: { type: "string" },
       source_urls: { type: "array", items: { type: "string" } },
     };
-    const response = await deadlineFetch(
-      `${String(settings["ai_base_url"] || "https://api.openai.com/v1").replace(/\/$/, "")}/responses`,
+    const aiBase = trustedServiceUrl(
+      String(settings["ai_base_url"] || "https://api.openai.com/v1"),
       {
-        method: "POST",
-        headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
-        body: JSON.stringify({
-          model: String(settings["ai_model"] || "gpt-5"),
-          store: false,
-          tools: [{ type: "web_search", search_context_size: "medium" }],
-          instructions: `Research legitimate business prospects. ${String(settings["ai_prospect_context"] || "Find organizations that clearly match the offering and explain the evidence.")} Never invent contact details or URLs; use null when unverified. Return at most ${limit} matches.`,
-          input: `Search request: ${data.prompt}\nCategory: ${category ? `${category.name}. ${category.description || ""}. Offerings: ${category.offerings || ""}` : "Not specified"}`,
-          text: {
-            format: {
-              type: "json_schema",
-              name: "prospect_matches",
-              strict: true,
-              schema: {
-                type: "object",
-                additionalProperties: false,
-                required: ["prospects"],
-                properties: {
-                  prospects: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      additionalProperties: false,
-                      required: Object.keys(itemProperties),
-                      properties: itemProperties,
-                    },
+        label: "AI base URL",
+        defaultOrigins: ["https://api.openai.com"],
+        allowedOriginsEnv: "AI_ALLOWED_ORIGINS",
+      },
+    );
+    const response = await deadlineFetch(`${aiBase.toString().replace(/\/$/, "")}/responses`, {
+      method: "POST",
+      redirect: "error",
+      headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+      body: JSON.stringify({
+        model: String(settings["ai_model"] || "gpt-5"),
+        store: false,
+        tools: [{ type: "web_search", search_context_size: "medium" }],
+        instructions: `Research legitimate business prospects. ${String(settings["ai_prospect_context"] || "Find organizations that clearly match the offering and explain the evidence.")} Never invent contact details or URLs; use null when unverified. Return at most ${limit} matches.`,
+        input: `Search request: ${data.prompt}\nCategory: ${category ? `${category.name}. ${category.description || ""}. Offerings: ${category.offerings || ""}` : "Not specified"}`,
+        text: {
+          format: {
+            type: "json_schema",
+            name: "prospect_matches",
+            strict: true,
+            schema: {
+              type: "object",
+              additionalProperties: false,
+              required: ["prospects"],
+              properties: {
+                prospects: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    additionalProperties: false,
+                    required: Object.keys(itemProperties),
+                    properties: itemProperties,
                   },
                 },
               },
             },
           },
-        }),
-      },
-    );
+        },
+      }),
+    });
     if (!response.ok) {
       if (response.status === 401)
         throw new Error(

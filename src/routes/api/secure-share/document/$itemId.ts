@@ -36,7 +36,8 @@ export const Route = createFileRoute("/api/secure-share/document/$itemId")({
           if (!item) return new Response("Document not found", { status: 404, headers });
           const url = new URL(request.url);
           const download = url.searchParams.get("download") === "1";
-          const { secureShareMayServe } = await import("@/lib/secure-share-security");
+          const { secureShareMayServe, secureShareSecret } =
+            await import("@/lib/secure-share-security");
           if (!secureShareMayServe(Boolean(session["allow_download"]), download))
             return new Response("Download permission was not granted for this secure share.", {
               status: 403,
@@ -56,8 +57,7 @@ export const Route = createFileRoute("/api/secure-share/document/$itemId")({
           const attachment = await readAttachmentRecord(item.attachment_path);
           const forwarded =
             request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-          const secret = process.env["SESSION_SECRET"] || "unconfigured-secure-share-secret";
-          const ipHash = createHmac("sha256", secret).update(forwarded).digest("hex");
+          const ipHash = createHmac("sha256", secureShareSecret()).update(forwarded).digest("hex");
           await db.execute(
             "INSERT INTO secure_document_share_events (id,share_id,recipient_id,item_id,event_type,detail,ip_hash) VALUES (?,?,?,?,?,?,?)",
             [

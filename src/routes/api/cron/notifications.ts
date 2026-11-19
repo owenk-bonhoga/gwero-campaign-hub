@@ -6,7 +6,8 @@ export const Route = createFileRoute("/api/cron/notifications")({
       POST: async ({ request }) => {
         const expected = process.env["CRON_SECRET"];
         const provided = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-        if (!expected || !provided || provided !== expected)
+        const { safeSecretEqual } = await import("@/lib/secure-share-security");
+        if (!expected || !provided || !safeSecretEqual(provided, expected))
           return Response.json({ error: "Unauthorized" }, { status: 401 });
         const { runNotificationEscalations } = await import("@/lib/notifications.server");
         const { processCampaignQueue } = await import("@/lib/campaigns.server");

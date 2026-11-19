@@ -799,7 +799,7 @@ export const addOpportunityDocument = createServerFn({ method: "POST" })
     let attachment = data.attachment;
     if (!attachment && data.documentId) {
       const { requireAttachmentAccess } = await import("./attachment-access.server");
-      await requireAttachmentAccess(data.documentId);
+      await requireAttachmentAccess(data.documentId, true);
       const document = rows<{ title: string; file_url: string | null }>(
         await db.query("SELECT title, file_url FROM documents WHERE id = ? LIMIT 1", [
           data.documentId,
@@ -1045,6 +1045,10 @@ export const submitOpportunity = createServerFn({ method: "POST" })
           [data.kind, data.opportunityId],
         ),
       );
+      const { requireDocumentLevel } = await import("./documents.server");
+      for (const file of fileRows)
+        if (file["document_id"])
+          await requireDocumentLevel(String(file["document_id"]), "edit", context.user);
       let attachments = fileRows
         .filter((file) => file["content"])
         .map((file) => ({
