@@ -40,7 +40,13 @@ export function withDatabaseDeadlines(pool: Pool, timeoutMs: number): Pool {
               value,
               target,
               values === undefined ? [options] : [options, values],
-            );
+            ).catch((error: Error & { code?: string }) => {
+              // Client timeouts do not cancel the server command. A busy
+              // connection must not be returned to the pool for another page.
+              if (["PROTOCOL_SEQUENCE_TIMEOUT", "ETIMEDOUT"].includes(error.code || ""))
+                target.destroy();
+              throw error;
+            });
           };
         return typeof value === "function" ? value.bind(target) : value;
       },
