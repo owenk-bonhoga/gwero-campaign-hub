@@ -745,7 +745,12 @@ export function StickyNotes() {
   const { data: notes = [] } = useQuery({
     queryKey,
     queryFn: () => getStickyNotes({ data: { pageKey } }),
-    refetchInterval: pendingLayoutIds.size || deletingIds.size ? false : 3_000,
+    refetchInterval:
+      pendingLayoutIds.size || deletingIds.size
+        ? false
+        : (query) => (query.state.data?.length ? 15_000 : 60_000),
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   });
   const { data: users = [] } = useQuery({
     queryKey: ["sticky-note-users"],

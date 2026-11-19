@@ -79,6 +79,10 @@ test("real database security, directory and queue regressions", { skip: !enabled
         () => requireDocumentLevel(documentId, "view", user),
         /Permission denied/,
       );
+      await assert.rejects(
+        () => requirePageAccess(`/documents?document=${documentId}`, user),
+        /Permission denied/,
+      );
       await requireDocumentLevel(documentId, "manage", { ...user, id: owner });
     });
     await t.test("note IDs enforce the permission of their underlying page", async () => {
