@@ -1,16 +1,11 @@
+import { validateContract } from "./input-contract";
+import { decryptMailboxRow } from "./secret-crypto";
+import { deadlineFetch } from "./request-deadline";
 import { createServerFn } from "@tanstack/react-start";
-import { getRequest } from "@tanstack/react-start/server";
 import { personalize, htmlToText } from "./personalize";
 import { authMiddleware, permissionMiddleware } from "./auth.middleware";
 
 type Json = Record<string, unknown>;
-
-function appOrigin() {
-  const request = getRequest();
-  const url = new URL(request!.url);
-  const forwarded = url.hostname === "localhost" ? request!.headers.get("x-forwarded-host") : null;
-  return forwarded ? `https://${forwarded}` : url.origin;
-}
 
 async function admin() {
   const { serverDb } = await import("./db.server");
@@ -28,6 +23,7 @@ export async function gatewayFetch(
   path: string,
   init?: RequestInit,
 ): Promise<Response> {
+  secret = decryptMailboxRow(secret);
   let accessToken = secret.oauth_access_token;
   if (!accessToken) throw new Error("Reconnect this OAuth mailbox from Sending accounts.");
   if (
@@ -57,7 +53,7 @@ export async function gatewayFetch(
         "scope",
         "openid email profile offline_access User.Read Mail.Read Mail.Send OnlineMeetings.ReadWrite",
       );
-    const refreshed = await fetch(tokenUrl, {
+    const refreshed = await deadlineFetch(tokenUrl, {
       method: "POST",
       headers: { "content-type": "application/x-www-form-urlencoded" },
       body,
@@ -92,7 +88,7 @@ export async function gatewayFetch(
       (provider === "google" || provider === "gmail") && target.hostname === "meet.googleapis.com";
     if (!allowed) throw new Error("Unsupported OAuth service endpoint.");
   }
-  return fetch(absolute ? path : `${base}${path}`, { ...init, headers });
+  return deadlineFetch(absolute ? path : `${base}${path}`, { ...init, headers });
 }
 
 /* ------------------------------------------------------------------ */
@@ -101,7 +97,9 @@ export async function gatewayFetch(
 
 export const saveMailboxCredentials = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((data: { mailboxId: string; smtpPassword?: string; imapPassword?: string }) => data)
+  .validator((data: { mailboxId: string; smtpPassword?: string; imapPassword?: string }) =>
+    validateContract(data, "saveMailboxCredentials"),
+  )
   .handler(async ({ data, context }) => {
     const { getPool } = await import("./db.server");
     const { requireMailboxAccess } = await import("./email-identity.server");
@@ -119,7 +117,7 @@ export const saveMailboxCredentials = createServerFn({ method: "POST" })
 
 export const testMailbox = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((data: { mailboxId: string }) => data)
+  .validator((data: { mailboxId: string }) => validateContract(data, "testMailbox"))
   .handler(async ({ data, context }) => {
     const { getPool } = await import("./db.server");
     const { requireMailboxAccess } = await import("./email-identity.server");
@@ -211,197 +209,9 @@ function trackHtml(
 
 export const sendCampaign = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("campaigns.manage")])
-  .validator((data: { campaignId: string }) => data)
-  .handler(async ({ data, context }) => {
-    const db = await admin();
-    const origin = appOrigin();
-
-    const { data: campaign, error: cErr } = await db
-      .from("campaigns")
-      .select("*")
-      .eq("id", data.campaignId)
-      .single();
-    if (cErr || !campaign) throw new Error("Campaign not found");
-    if (!campaign.mailbox_id) throw new Error("Pick a sending account for this campaign first.");
-    const { getPool } = await import("./db.server");
-    const { requireMailboxAccess } = await import("./email-identity.server");
-    await requireMailboxAccess(getPool(), campaign.mailbox_id, context.user);
-
-    const { data: mailbox } = await db
-      .from("mailboxes")
-      .select("*")
-      .eq("id", campaign.mailbox_id)
-      .single();
-    if (!mailbox) throw new Error("Sending account not found");
-
-    const { data: secret } = await db
-      .from("mailbox_secrets")
-      .select("*")
-      .eq("mailbox_id", mailbox.id)
-      .maybeSingle();
-
-    const { data: recipients } = await db
-      .from("campaign_recipients")
-      .select("id, prospect_id, status, prospects(*)")
-      .eq("campaign_id", campaign.id)
-      .in("status", ["pending", "failed"]);
-
-    if (!recipients?.length) throw new Error("No pending recipients in this campaign.");
-
-    // Load attachments once.
-    const attachmentList =
-      (campaign.attachments as unknown as Array<{
-        path: string;
-        name: string;
-        type?: string;
-      }>) ?? [];
-    const attachments = [] as Array<{ filename: string; contentType: string; content: Uint8Array }>;
-    for (const att of attachmentList) {
-      try {
-        const { readAttachment } = await import("./attachments.server");
-        const file = await readAttachment(att.path);
-        attachments.push({
-          filename: att.name,
-          contentType: att.type || "application/octet-stream",
-          content: new Uint8Array(file),
-        });
-      } catch (error) {
-        throw new Error(`Attachment ${att.name} is unavailable: ${String(error)}`);
-      }
-    }
-
-    await db.from("campaigns").update({ status: "sending" }).eq("id", campaign.id);
-
-    const { buildMime } = await import("./mime.server");
-    let sent = 0;
-    let failed = 0;
-
-    for (const recipient of recipients) {
-      const prospect = recipient.prospects as unknown as Parameters<typeof personalize>[1] & {
-        email: string;
-      };
-      try {
-        if (!prospect?.email) throw new Error("Prospect has no email address");
-        const subject = personalize(campaign.subject, prospect);
-        const { applyActiveEmailSignature } = await import("./email-identity.server");
-        const unsignedHtml = personalize(campaign.body_html, prospect);
-        const signed = await applyActiveEmailSignature(
-          getPool(),
-          context.user.id,
-          campaign.mailbox_id,
-          unsignedHtml,
-          htmlToText(unsignedHtml),
-        );
-        const html = trackHtml(
-          signed.html,
-          recipient.id,
-          origin,
-          campaign.track_opens,
-          campaign.track_clicks,
-        );
-        const text = signed.text;
-        const messageId = `<${recipient.id}@gwero-crm>`;
-
-        const raw = buildMime({
-          from: mailbox.from_email,
-          fromName: mailbox.from_name,
-          to: prospect.email,
-          cc: campaign.cc ?? [],
-          subject,
-          html,
-          text,
-          attachments,
-          messageId,
-        });
-
-        if (mailbox.provider === "smtp") {
-          const { smtpSend } = await import("./smtp.server");
-          await smtpSend(
-            {
-              host: mailbox.smtp_host ?? "",
-              port: mailbox.smtp_port ?? 587,
-              secure: mailbox.smtp_secure,
-              username: mailbox.smtp_username ?? "",
-              password: secret?.smtp_password ?? "",
-            },
-            {
-              from: mailbox.from_email,
-              envelopeFrom: mailbox.from_email,
-              to: prospect.email,
-              cc: campaign.cc ?? [],
-              bcc: campaign.bcc ?? [],
-              raw,
-            },
-          );
-        } else if (mailbox.provider === "gmail") {
-          const encoded = Buffer.from(raw, "utf8")
-            .toString("base64")
-            .replace(/\+/g, "-")
-            .replace(/\//g, "_")
-            .replace(/=+$/, "");
-          const res = await gatewayFetch("gmail", secret!, "/gmail/v1/users/me/messages/send", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ raw: encoded }),
-          });
-          if (!res.ok) throw new Error(await res.text());
-        } else {
-          const res = await gatewayFetch("outlook", secret!, "/me/sendMail", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              message: {
-                subject,
-                body: { contentType: "HTML", content: html },
-                toRecipients: [{ emailAddress: { address: prospect.email } }],
-                ccRecipients: (campaign.cc ?? []).map((a: string) => ({
-                  emailAddress: { address: a },
-                })),
-                bccRecipients: (campaign.bcc ?? []).map((a: string) => ({
-                  emailAddress: { address: a },
-                })),
-                attachments: attachments.map((a) => ({
-                  "@odata.type": "#microsoft.graph.fileAttachment",
-                  name: a.filename,
-                  contentType: a.contentType,
-                  contentBytes: Buffer.from(a.content).toString("base64"),
-                })),
-              },
-            }),
-          });
-          if (!res.ok) throw new Error(await res.text());
-        }
-
-        await db
-          .from("campaign_recipients")
-          .update({
-            status: "sent",
-            sent_at: new Date().toISOString(),
-            error: null,
-            message_id: messageId,
-          })
-          .eq("id", recipient.id);
-        await db
-          .from("prospects")
-          .update({ status: "contacted", updated_at: new Date().toISOString() })
-          .eq("id", recipient.prospect_id)
-          .eq("status", "new");
-        sent++;
-      } catch (error) {
-        failed++;
-        await db
-          .from("campaign_recipients")
-          .update({ status: "failed", error: String((error as Error).message).slice(0, 500) })
-          .eq("id", recipient.id);
-      }
-    }
-
-    await db
-      .from("campaigns")
-      .update({ status: "sent", sent_at: new Date().toISOString() })
-      .eq("id", campaign.id);
-
-    return { sent, failed };
+  .validator((data: { campaignId: string }) => validateContract(data, "sendCampaign"))
+  .handler(async () => {
+    throw new Error("Use the approved campaign queue. Legacy bulk sending is disabled.");
   });
 
 /* ------------------------------------------------------------------ */
@@ -464,7 +274,7 @@ export const sendProspectEmail = createServerFn({ method: "POST" })
       body: string;
       bodyHtml?: string;
       attachments?: Array<{ path: string; name: string; type: string; size: number }>;
-    }) => data,
+    }) => validateContract(data, "sendProspectEmail"),
   )
   .handler(async ({ data, context }) => {
     const db = await admin();

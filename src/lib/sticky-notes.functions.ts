@@ -1,3 +1,5 @@
+import { requirePageAccess, requireNoteAccess } from "./page-access.server";
+import { validateContract } from "./input-contract";
 import { randomUUID } from "node:crypto";
 import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "./auth.middleware";
@@ -92,6 +94,31 @@ async function notifyMentions({
   const actionUrl = `${page}${page.includes("?") ? "&" : "?"}note=${encodeURIComponent(noteId)}${commentId ? `&comment=${encodeURIComponent(commentId)}` : ""}`;
   const notificationIds: string[] = [];
   for (const userId of mentionIds.filter((id) => id !== actorId)) {
+    const [allowed] = await db.execute(
+      "SELECT u.id,u.role_id,r.name role_name FROM system_users u LEFT JOIN roles r ON r.id=u.role_id WHERE u.id=? AND u.status='active'",
+      [userId],
+    );
+    const recipient = (allowed as Array<{ id: string; role_id: string; role_name: string }>)[0];
+    if (!recipient) continue;
+    const [permissionRows] = await db.execute(
+      "SELECT p.permission_key FROM role_permissions rp JOIN permissions p ON p.id=rp.permission_id WHERE rp.role_id=?",
+      [recipient.role_id],
+    );
+    try {
+      await requirePageAccess(page, {
+        id: userId,
+        fullName: "",
+        email: "",
+        roleId: recipient.role_id,
+        roleName: recipient.role_name,
+        permissions: (permissionRows as Array<{ permission_key: string }>).map(
+          (row) => row.permission_key,
+        ),
+      });
+    } catch {
+      continue;
+    }
+
     const notificationId = randomUUID();
     await db.execute(
       `INSERT INTO notifications
@@ -118,8 +145,9 @@ async function notifyMentions({
 
 export const getStickyNotes = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .validator((data: { pageKey: string }) => data)
+  .validator((data: { pageKey: string }) => validateContract(data, "getStickyNotes"))
   .handler(async ({ data, context }) => {
+    await requirePageAccess(pageKey(data.pageKey), context.user);
     const { getPool } = await import("./db.server");
     const db = getPool();
     const [noteRows] = await db.execute(
@@ -209,9 +237,10 @@ export const createStickyNote = createServerFn({ method: "POST" })
       color?: string;
       pinned?: boolean;
       mentionIds?: string[];
-    }) => data,
+    }) => validateContract(data, "createStickyNote"),
   )
   .handler(async ({ data, context }) => {
+    await requirePageAccess(pageKey(data.pageKey), context.user);
     const input = cleanInput(data);
     const { getPool } = await import("./db.server");
     const db = getPool();
@@ -279,10 +308,11 @@ export const createStickyNoteComment = createServerFn({ method: "POST" })
       body: string;
       color?: string;
       mentionIds?: string[];
-    }) => data,
+    }) => validateContract(data, "createStickyNoteComment"),
   )
   .handler(async ({ data, context }) => {
     const input = cleanCommentInput(data);
+    await requireNoteAccess(data.noteId, context.user, false);
     const { getPool } = await import("./db.server");
     const db = getPool();
     const [noteRows] = await db.execute(
@@ -334,8 +364,9 @@ export const createStickyNoteComment = createServerFn({ method: "POST" })
 
 export const deleteStickyNoteComment = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((data: { commentId: string }) => data)
+  .validator((data: { commentId: string }) => validateContract(data, "deleteStickyNoteComment"))
   .handler(async ({ data, context }) => {
+    await requireNoteAccess(data.commentId, context.user, true);
     const { getPool } = await import("./db.server");
     const db = getPool();
     const [rows] = await db.execute(
@@ -367,9 +398,11 @@ export const updateStickyNote = createServerFn({ method: "POST" })
       color?: string;
       pinned?: boolean;
       mentionIds?: string[];
-    }) => data,
+    }) => validateContract(data, "updateStickyNote"),
   )
   .handler(async ({ data, context }) => {
+    await requirePageAccess(pageKey(data.pageKey), context.user);
+    await requireNoteAccess(data.noteId, context.user);
     const input = cleanInput(data);
     const { getPool } = await import("./db.server");
     const db = getPool();
@@ -437,9 +470,10 @@ export const updateStickyNoteLayout = createServerFn({ method: "POST" })
       zIndex?: number;
       isOpen?: boolean;
       isPinned?: boolean;
-    }) => data,
+    }) => validateContract(data, "updateStickyNoteLayout"),
   )
   .handler(async ({ data, context }) => {
+    await requireNoteAccess(data.noteId, context.user, false);
     const { getPool } = await import("./db.server");
     const db = getPool();
     const [rows] = await db.execute(
@@ -481,8 +515,9 @@ export const updateStickyNoteLayout = createServerFn({ method: "POST" })
 
 export const deleteStickyNote = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((data: { noteId: string }) => data)
+  .validator((data: { noteId: string }) => validateContract(data, "deleteStickyNote"))
   .handler(async ({ data, context }) => {
+    await requireNoteAccess(data.noteId, context.user, false);
     const { getPool } = await import("./db.server");
     const db = getPool();
     const [rows] = await db.execute("SELECT created_by FROM page_notes WHERE id = ? LIMIT 1", [

@@ -1,3 +1,4 @@
+import { validateContract } from "./input-contract";
 import { createServerFn } from "@tanstack/react-start";
 import { permissionMiddleware } from "./auth.middleware";
 import { requireMailboxAccess } from "./email-identity.server";
@@ -51,7 +52,7 @@ export const listMeetings = createServerFn({ method: "GET" })
 
 export const getMeeting = createServerFn({ method: "GET" })
   .middleware([permission])
-  .validator((data: { id: string }) => data)
+  .validator((data: { id: string }) => validateContract(data, "getMeeting"))
   .handler(async ({ data, context }) => {
     const pool = await db();
     const [rows] = await pool.execute(
@@ -69,7 +70,7 @@ export const getMeeting = createServerFn({ method: "GET" })
 
 export const saveMeeting = createServerFn({ method: "POST" })
   .middleware([permission])
-  .validator((data: MeetingInput) => data)
+  .validator((data: MeetingInput) => validateContract(data, "saveMeeting"))
   .handler(async ({ data, context }) => {
     const pool = await db();
     const title = data.title.trim();
@@ -192,7 +193,7 @@ export const saveMeeting = createServerFn({ method: "POST" })
 
 export const cancelMeeting = createServerFn({ method: "POST" })
   .middleware([permission])
-  .validator((data: { id: string }) => data)
+  .validator((data: { id: string }) => validateContract(data, "cancelMeeting"))
   .handler(async ({ data, context }) => {
     const pool = await db();
     const [result] = await pool.execute(

@@ -1,3 +1,4 @@
+import { useRouter } from "@tanstack/react-router";
 import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -57,6 +58,7 @@ function ProspectDetailRoute() {
 }
 
 function ProspectDetail() {
+  const router = useRouter();
   const { id } = Route.useParams();
   const qc = useQueryClient();
   const convert = useServerFn(convertProspectToClient);
@@ -269,7 +271,7 @@ function ProspectDetail() {
         qc.invalidateQueries({ queryKey: ["clients"] }),
         qc.invalidateQueries({ queryKey: ["prospect", id] }),
       ]);
-      window.location.assign(`/clients/${result.clientId}`);
+      void router.navigate({ href: `/clients/${result.clientId}` });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Prospect could not be converted.");
       throw error;

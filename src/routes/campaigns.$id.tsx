@@ -33,6 +33,7 @@ import {
   getCampaignWorkspace,
   removeCampaignRecipient,
   runCampaignQueue,
+  resolveCampaignDelivery,
   saveCampaignSequence,
   suppressEmail,
   updateCampaign,
@@ -414,6 +415,20 @@ function CampaignDetail() {
     );
   }, [category, contactSearch, data?.contacts]);
   const campaign = data?.campaign;
+  const resolveDelivery = useMutation({
+    mutationFn: ({
+      recipientId,
+      outcome,
+    }: {
+      recipientId: string;
+      outcome: "delivered" | "not_delivered";
+    }) => resolveCampaignDelivery({ data: { campaignId: id, recipientId, outcome } }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["campaign-workspace", id] });
+      toast.success("Delivery review saved.");
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
   const recipients = data?.recipients ?? EMPTY_RECIPIENTS;
   const stats = useMemo(
     () => ({
@@ -1623,6 +1638,35 @@ function CampaignDetail() {
                     <div>{recipient.click_count || 0}</div>
                     <div>{recipient.replied_at ? "Yes" : "—"}</div>
                     <div>
+                      {recipient.status === "uncertain" ? (
+                        <div className="mb-2 space-y-2">
+                          {(["delivered", "not_delivered"] as const).map((outcome) => (
+                            <ConfirmAction
+                              key={outcome}
+                              title={
+                                outcome === "delivered"
+                                  ? "Confirm provider accepted this message?"
+                                  : "Confirm this message was not delivered?"
+                              }
+                              description="Check the sending account and provider logs before recording the outcome."
+                              onConfirm={() =>
+                                resolveDelivery
+                                  .mutateAsync({ recipientId: recipient.id, outcome })
+                                  .then(() => undefined)
+                              }
+                              trigger={
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={resolveDelivery.isPending}
+                                >
+                                  {outcome === "delivered" ? "Delivered" : "Allow retry"}
+                                </Button>
+                              }
+                            />
+                          ))}
+                        </div>
+                      ) : null}
                       {!["stopped", "completed"].includes(recipient.status) ? (
                         <ConfirmAction
                           title="Suppress this email?"

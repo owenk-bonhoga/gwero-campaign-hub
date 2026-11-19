@@ -1,3 +1,4 @@
+import { validateContract } from "./input-contract";
 import { createServerFn } from "@tanstack/react-start";
 import { consumeLoginAttempt } from "./login-limit.server";
 import {
@@ -36,7 +37,7 @@ export const getAuthStatus = createServerFn({ method: "GET" }).handler(async () 
 });
 
 export const login = createServerFn({ method: "POST" })
-  .validator((data: { email: string; password: string }) => data)
+  .validator((data: { email: string; password: string }) => validateContract(data, "login"))
   .handler(async ({ data }) => {
     if (
       typeof data?.email !== "string" ||
@@ -63,7 +64,9 @@ export const login = createServerFn({ method: "POST" })
   });
 
 export const bootstrapAdministrator = createServerFn({ method: "POST" })
-  .validator((data: { fullName: string; email: string; password: string }) => data)
+  .validator((data: { fullName: string; email: string; password: string }) =>
+    validateContract(data, "bootstrapAdministrator"),
+  )
   .handler(async ({ data }) => {
     const { getPool } = await import("./db.server");
     const db = getPool();
@@ -107,7 +110,7 @@ export const saveSystemUser = createServerFn({ method: "POST" })
       roleId: string | null;
       status: string;
       password?: string;
-    }) => data,
+    }) => validateContract(data, "saveSystemUser"),
   )
   .handler(async ({ data, context }) => {
     const { getPool } = await import("./db.server");
@@ -126,10 +129,22 @@ export const saveSystemUser = createServerFn({ method: "POST" })
       if (data.id === context.user.id && data.roleId !== context.user.roleId)
         throw new Error("You cannot change your own role while signed in.");
       values.push(data.id);
-      await db.execute(
-        `UPDATE system_users SET full_name = ?, email = ?, role_id = ?, status = ?${passwordSql} WHERE id = ?`,
-        values,
-      );
+      const connection = await db.getConnection();
+      try {
+        await connection.beginTransaction();
+        await connection.execute(
+          `UPDATE system_users SET full_name=?, email=?, role_id=?, status=?${passwordSql} WHERE id=?`,
+          values,
+        );
+        if (data.password || data.status !== "active")
+          await connection.execute("DELETE FROM auth_sessions WHERE user_id=?", [data.id]);
+        await connection.commit();
+      } catch (error) {
+        await connection.rollback();
+        throw error;
+      } finally {
+        connection.release();
+      }
     } else {
       if (!data.password) throw new Error("Set an initial password for the new user.");
       const { randomUUID } = await import("node:crypto");
@@ -150,7 +165,7 @@ export const saveSystemUser = createServerFn({ method: "POST" })
 
 export const deleteSystemUser = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("users.manage")])
-  .validator((data: { id: string }) => data)
+  .validator((data: { id: string }) => validateContract(data, "deleteSystemUser"))
   .handler(async ({ data, context }) => {
     if (data.id === context.user.id) throw new Error("You cannot delete your own account.");
     const { getPool } = await import("./db.server");
@@ -160,7 +175,7 @@ export const deleteSystemUser = createServerFn({ method: "POST" })
 
 export const createRole = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("users.manage")])
-  .validator((data: { name: string; description: string }) => data)
+  .validator((data: { name: string; description: string }) => validateContract(data, "createRole"))
   .handler(async ({ data }) => {
     const { randomUUID } = await import("node:crypto");
     const { getPool } = await import("./db.server");
@@ -173,7 +188,9 @@ export const createRole = createServerFn({ method: "POST" })
 
 export const setRolePermission = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("users.manage")])
-  .validator((data: { roleId: string; permissionId: string; enabled: boolean }) => data)
+  .validator((data: { roleId: string; permissionId: string; enabled: boolean }) =>
+    validateContract(data, "setRolePermission"),
+  )
   .handler(async ({ data }) => {
     const { getPool } = await import("./db.server");
     const db = getPool();

@@ -1,3 +1,4 @@
+import { validateContract } from "./input-contract";
 import { randomUUID } from "node:crypto";
 import type { RowDataPacket } from "mysql2/promise";
 import { createServerFn } from "@tanstack/react-start";
@@ -114,7 +115,9 @@ export const getDocumentMarkWorkspace = createServerFn({ method: "GET" })
 
 export const saveStamp = createServerFn({ method: "POST" })
   .middleware([permission])
-  .validator((data: { id?: string; name: string; design: StampDesign }) => data)
+  .validator((data: { id?: string; name: string; design: StampDesign }) =>
+    validateContract(data, "saveStamp"),
+  )
   .handler(async ({ data, context }) => {
     const id = uuid.test(data.id || "") ? data.id! : randomUUID();
     const name = text(data.name, 160);
@@ -132,7 +135,9 @@ export const saveStamp = createServerFn({ method: "POST" })
 
 export const saveSignature = createServerFn({ method: "POST" })
   .middleware([permission])
-  .validator((data: { id: string; name: string; imagePath: string }) => data)
+  .validator((data: { id: string; name: string; imagePath: string }) =>
+    validateContract(data, "saveSignature"),
+  )
   .handler(async ({ data, context }) => {
     if (!uuid.test(data.id) || !data.imagePath.startsWith(`${data.id}/`))
       throw new Error("Invalid signature image.");
@@ -150,7 +155,9 @@ export const saveSignature = createServerFn({ method: "POST" })
 
 export const archiveDocumentMark = createServerFn({ method: "POST" })
   .middleware([permission])
-  .validator((data: { id: string }) => ({ id: text(data?.id, 36) }))
+  .validator((data: { id: string }) =>
+    validateContract({ id: text(data?.id, 36) }, "archiveDocumentMark"),
+  )
   .handler(async ({ data, context }) => {
     if (!uuid.test(data.id)) throw new Error("Invalid mark.");
     const { getPool } = await import("./db.server");
@@ -174,7 +181,9 @@ type DocumentMarkPlacementInput = {
 
 export const applyDocumentMarks = createServerFn({ method: "POST" })
   .middleware([permission])
-  .validator((data: { sourcePath: string; placements: DocumentMarkPlacementInput[] }) => data)
+  .validator((data: { sourcePath: string; placements: DocumentMarkPlacementInput[] }) =>
+    validateContract(data, "applyDocumentMarks"),
+  )
   .handler(async ({ data, context }) => {
     const [ownerId, fileId] = String(data.sourcePath || "").split("/");
     if (!uuid.test(ownerId || "") || !uuid.test(fileId || "")) throw new Error("Invalid document.");

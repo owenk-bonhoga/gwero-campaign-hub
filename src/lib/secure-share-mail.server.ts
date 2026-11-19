@@ -1,3 +1,4 @@
+import { decryptMailboxRow } from "./secret-crypto";
 import type { Pool } from "mysql2/promise";
 import { gatewayFetch } from "./crm.functions";
 import { buildMime } from "./mime.server";
@@ -41,7 +42,8 @@ export async function sendSecureShareEmail(
     "SELECT * FROM mailbox_secrets WHERE mailbox_id=? LIMIT 1",
     [input.mailboxId],
   );
-  const secret = (secretRows as Secret[])[0];
+  const stored = (secretRows as Secret[])[0];
+  const secret = stored ? decryptMailboxRow(stored) : undefined;
   if (mailbox.provider === "smtp") {
     const raw = buildMime({
       from: mailbox.from_email,

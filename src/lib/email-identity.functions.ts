@@ -1,3 +1,4 @@
+import { validateContract } from "./input-contract";
 import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "./auth.middleware";
 import { cleanEmailHtml, requireMailboxAccess } from "./email-identity.server";
@@ -87,7 +88,7 @@ export const saveMailbox = createServerFn({ method: "POST" })
       username?: string;
       imapHost?: string;
       imapPort?: number;
-    }) => data,
+    }) => validateContract(data, "saveMailbox"),
   )
   .handler(async ({ data, context }) => {
     const db = await pool();
@@ -178,7 +179,9 @@ export const saveMailbox = createServerFn({ method: "POST" })
 
 export const updateMailboxProfile = createServerFn({ method: "POST" })
   .middleware([permission])
-  .validator((data: { id: string; name: string; fromName?: string }) => data)
+  .validator((data: { id: string; name: string; fromName?: string }) =>
+    validateContract(data, "updateMailboxProfile"),
+  )
   .handler(async ({ data, context }) => {
     const db = await pool();
     await requireMailboxAccess(db, data.id, context.user, true);
@@ -192,8 +195,8 @@ export const updateMailboxProfile = createServerFn({ method: "POST" })
 
 export const setMailboxUserAccess = createServerFn({ method: "POST" })
   .middleware([permission])
-  .validator(
-    (data: { mailboxId: string; userId: string; canSend: boolean; canManage?: boolean }) => data,
+  .validator((data: { mailboxId: string; userId: string; canSend: boolean; canManage?: boolean }) =>
+    validateContract(data, "setMailboxUserAccess"),
   )
   .handler(async ({ data, context }) => {
     const db = await pool();
@@ -218,7 +221,7 @@ export const setMailboxUserAccess = createServerFn({ method: "POST" })
 
 export const deleteMailbox = createServerFn({ method: "POST" })
   .middleware([permission])
-  .validator((data: { id: string }) => data)
+  .validator((data: { id: string }) => validateContract(data, "deleteMailbox"))
   .handler(async ({ data, context }) => {
     const db = await pool();
     await requireMailboxAccess(db, data.id, context.user, true);
@@ -258,7 +261,7 @@ export const deleteMailbox = createServerFn({ method: "POST" })
 
 export const setDefaultMailbox = createServerFn({ method: "POST" })
   .middleware([permission])
-  .validator((data: { mailboxId: string }) => data)
+  .validator((data: { mailboxId: string }) => validateContract(data, "setDefaultMailbox"))
   .handler(async ({ data, context }) => {
     const db = await pool();
     await requireMailboxAccess(db, data.mailboxId, context.user);
@@ -284,7 +287,7 @@ export const saveEmailSignature = createServerFn({ method: "POST" })
       html?: string;
       text?: string;
       imageUrl?: string;
-    }) => data,
+    }) => validateContract(data, "saveEmailSignature"),
   )
   .handler(async ({ data, context }) => {
     const db = await pool();
@@ -324,7 +327,9 @@ export const saveEmailSignature = createServerFn({ method: "POST" })
 
 export const activateEmailSignature = createServerFn({ method: "POST" })
   .middleware([permission])
-  .validator((data: { mailboxId: string; signatureId?: string | null }) => data)
+  .validator((data: { mailboxId: string; signatureId?: string | null }) =>
+    validateContract(data, "activateEmailSignature"),
+  )
   .handler(async ({ data, context }) => {
     const db = await pool();
     await requireMailboxAccess(db, data.mailboxId, context.user);
@@ -344,7 +349,7 @@ export const activateEmailSignature = createServerFn({ method: "POST" })
 
 export const deleteEmailSignature = createServerFn({ method: "POST" })
   .middleware([permission])
-  .validator((data: { id: string }) => data)
+  .validator((data: { id: string }) => validateContract(data, "deleteEmailSignature"))
   .handler(async ({ data, context }) => {
     await (
       await pool()

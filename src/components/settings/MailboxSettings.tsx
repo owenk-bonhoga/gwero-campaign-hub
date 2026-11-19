@@ -1,3 +1,4 @@
+import { useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -51,6 +52,7 @@ const emptyForm = {
 };
 
 export function MailboxSettings({ setupRequired = false }: { setupRequired?: boolean }) {
+  const router = useRouter();
   const qc = useQueryClient();
   const saveSecrets = useServerFn(saveMailboxCredentials);
   const test = useServerFn(testMailbox);
@@ -85,10 +87,11 @@ export function MailboxSettings({ setupRequired = false }: { setupRequired?: boo
   useEffect(() => {
     if (!setupRequired || !workspace || readyOwnedCount === 0) return;
     const next = new URLSearchParams(window.location.search).get("next");
-    window.location.replace(
-      next?.startsWith("/") && !next.startsWith("//") ? next : "/settings?tab=email",
-    );
-  }, [readyOwnedCount, setupRequired, workspace]);
+    void router.navigate({
+      href: next?.startsWith("/") && !next.startsWith("//") ? next : "/settings?tab=email",
+      replace: true,
+    });
+  }, [readyOwnedCount, setupRequired, workspace, router]);
   const selectedProvider = providerById(providerId);
   const refresh = () => {
     void qc.invalidateQueries({ queryKey: ["email-identity-workspace"] });
@@ -161,9 +164,9 @@ export function MailboxSettings({ setupRequired = false }: { setupRequired?: boo
       refresh();
       if (setupRequired) {
         const next = new URLSearchParams(window.location.search).get("next");
-        window.location.assign(
-          next?.startsWith("/") && !next.startsWith("//") ? next : "/settings?tab=email",
-        );
+        void router.navigate({
+          href: next?.startsWith("/") && !next.startsWith("//") ? next : "/settings?tab=email",
+        });
       }
     },
     onError: (error: Error) => {

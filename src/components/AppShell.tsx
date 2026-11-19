@@ -1,6 +1,6 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useRouter, useRouterState } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, type CSSProperties, type ReactNode } from "react";
+import { lazy, Suspense, useState, useEffect, type CSSProperties, type ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard,
@@ -37,14 +37,15 @@ import {
   CalendarDays,
   Share2,
 } from "lucide-react";
-import { db } from "@/lib/db";
+import { getPublicBranding } from "@/lib/settings.functions";
+import { mayAccessPage } from "@/lib/page-access";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Menu } from "lucide-react";
 import { getAuthStatus, logout } from "@/lib/auth.functions";
-import { syncBidafOpportunities } from "@/lib/bidaf.functions";
 import {
   getNotifications,
   markAllNotificationsRead,
   markNotificationRead,
-  processNotificationEmails,
 } from "@/lib/notifications.functions";
 import {
   DropdownMenu,
@@ -56,7 +57,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { StickyNotes } from "@/components/StickyNotes";
 import { GlobalSearch } from "@/components/GlobalSearch";
-import { GlobalDocumentViewer } from "@/components/DocumentViewer";
+const LazyDocumentViewer = lazy(() =>
+  import("@/components/DocumentViewer").then((m) => ({ default: m.GlobalDocumentViewer })),
+);
 
 type NavItem = { to: string; label: string; icon: LucideIcon };
 const nav = (to: string, label: string, icon: LucideIcon): NavItem => ({ to, label, icon });
@@ -123,47 +126,92 @@ const navGroups = [
   },
 ];
 
-const allItems = navGroups.flatMap((g) => g.items);
-
-export function AppShell({
-  title,
-  description,
-  actions,
-  children,
-}: {
-  title: string;
-  description?: string;
-  actions?: ReactNode;
-  children: ReactNode;
-}) {
+export function AppFrame({ children }: { children: ReactNode }) {
+  const router = useRouter();
+  const location = useRouterState({ select: (state) => state.location });
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerTarget, setViewerTarget] = useState<{
+    url: string;
+    name: string;
+    allowDownload: boolean;
+  } | null>(null);
+  useEffect(() => {
+    const loadViewer = (event: MouseEvent) => {
+      const anchor =
+        event.target instanceof Element
+          ? event.target.closest<HTMLAnchorElement>(
+              'a[href*="/api/attachments/"],a[href*="/api/secure-share/document/"]',
+            )
+          : null;
+      if (
+        !anchor ||
+        anchor.dataset["documentDownload"] === "true" ||
+        event.button !== 0 ||
+        viewerOpen
+      )
+        return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const href = anchor.getAttribute("href") || "";
+      const name = anchor.download || "";
+      void import("@/components/DocumentViewer")
+        .then(() => {
+          setViewerTarget({
+            url: href,
+            name,
+            allowDownload: anchor.dataset["documentDownloadDisabled"] !== "true",
+          });
+          setViewerOpen(true);
+        })
+        .catch(() => setQueryFailure("The document viewer could not be loaded. Try again."));
+    };
+    document.addEventListener("click", loadViewer, true);
+    return () => document.removeEventListener("click", loadViewer, true);
+  }, [viewerOpen]);
   const qc = useQueryClient();
+  const [queryFailure, setQueryFailure] = useState<string | null>(null);
+  useEffect(
+    () =>
+      qc.getQueryCache().subscribe((event) => {
+        if (event.type === "updated" && event.action.type === "error")
+          setQueryFailure(event.query.state.error?.message || "A request failed.");
+      }),
+    [qc],
+  );
   const { data: auth } = useQuery({ queryKey: ["auth-status"], queryFn: () => getAuthStatus() });
+  useEffect(() => {
+    if (auth && !auth.user) void router.navigate({ to: "/login", replace: true });
+  }, [auth, router]);
   useEffect(() => {
     if (!auth?.user || !auth.emailSetupRequired) return;
     const onRequiredSetup =
-      window.location.pathname === "/settings" &&
-      new URLSearchParams(window.location.search).get("setup") === "required";
+      location.pathname === "/settings" &&
+      new URLSearchParams(location.searchStr).get("setup") === "required";
     if (onRequiredSetup) return;
-    const next = `${window.location.pathname}${window.location.search}`;
-    window.location.replace(`/settings?tab=email&setup=required&next=${encodeURIComponent(next)}`);
-  }, [auth]);
+    const next = `${location.pathname}${location.searchStr}`;
+    void router.navigate({
+      href: `/settings?tab=email&setup=required&next=${encodeURIComponent(next)}`,
+      replace: true,
+    });
+  }, [auth, location.pathname, location.searchStr, router]);
   const { data: notifications = [] } = useQuery({
     queryKey: ["notifications"],
     queryFn: () => getNotifications(),
     refetchInterval: 30_000,
   });
   const unread = notifications.filter((item) => !item.read_at);
-  const { data: branding = [] } = useQuery({
+  const { data: brand = {} } = useQuery({
     queryKey: ["app-branding"],
-    queryFn: async () => {
-      const { data } = await db.from("system_settings").select("*").eq("setting_group", "branding");
-      return data ?? [];
-    },
-    staleTime: 60_000,
+    queryFn: () => getPublicBranding(),
+    staleTime: 300000,
   });
-  const brand = Object.fromEntries(
-    branding.map((item) => [item.setting_key, String(item.setting_value ?? "")]),
-  );
+  const visibleGroups = navGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => mayAccessPage(item.to, auth?.user?.permissions || [])),
+    }))
+    .filter((group) => group.items.length);
   const systemName = brand["system_name"] || "Gwero OS";
   useEffect(() => {
     if (!brand["icon_url"]) return;
@@ -174,25 +222,15 @@ export function AppShell({
       document.head.appendChild(link);
     }
     link.href = brand["icon_url"];
-  }, [brand["icon_url"]]);
-  useEffect(() => {
-    void processNotificationEmails().catch(() => undefined);
-    void syncBidafOpportunities()
-      .then((result) => {
-        if (result.status !== "completed" || (!result.created && !result.updated)) return;
-        for (const kind of ["bid", "eoi", "rfp", "rfq"])
-          void qc.invalidateQueries({ queryKey: ["opportunities", kind] });
-      })
-      .catch(() => undefined);
-  }, [qc]);
+  }, [brand]);
   return (
     <div
       className="flex min-h-screen max-w-full overflow-x-clip bg-background"
       style={
         {
-          fontFamily: brand["font_family"] || undefined,
-          "--font-body": brand["font_family"] || undefined,
-          "--font-display": brand["font_family"] || undefined,
+          fontFamily: `${brand["font_family"] || "Arial"}, system-ui, sans-serif`,
+          "--font-body": `${brand["font_family"] || "Arial"}, system-ui, sans-serif`,
+          "--font-display": `${brand["font_family"] || "Arial"}, system-ui, sans-serif`,
           "--primary": brand["primary_color"] || undefined,
           "--ring": brand["primary_color"] || undefined,
           "--sidebar-primary": brand["primary_color"] || undefined,
@@ -221,7 +259,7 @@ export function AppShell({
           </div>
         </div>
         <nav className="gwero-scrollbar flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-3 py-2">
-          {navGroups.map((group) => (
+          {visibleGroups.map((group) => (
             <div key={group.label} className="space-y-1">
               <p className="px-4 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                 {group.label}
@@ -252,10 +290,42 @@ export function AppShell({
 
       <div className="flex w-full min-w-0 flex-1 flex-col md:pl-64">
         <header className="fixed left-0 right-0 top-0 z-30 flex min-h-20 items-center gap-4 border-b border-violet-100 bg-white/95 px-5 backdrop-blur md:left-64 md:px-8">
+          <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+            <SheetTrigger className="rounded-lg p-2 md:hidden" aria-label="Open navigation">
+              <Menu className="size-5" />
+            </SheetTrigger>
+            <SheetContent side="left" className="overflow-y-auto">
+              <SheetTitle>Navigate Gwero</SheetTitle>
+              <nav aria-label="Mobile navigation" className="mt-5 space-y-5">
+                {visibleGroups.map((group) => (
+                  <div key={group.label}>
+                    <p className="text-xs font-semibold uppercase text-muted-foreground">
+                      {group.label}
+                    </p>
+                    {group.items.map((item) => (
+                      <Link
+                        key={item.to}
+                        to={item.to as never}
+                        onClick={() => setMenuOpen(false)}
+                        className="flex items-center gap-3 rounded-lg p-3"
+                      >
+                        <item.icon className="size-4" />
+                        {item.label}
+                      </Link>
+                    ))}
+                  </div>
+                ))}
+              </nav>
+            </SheetContent>
+          </Sheet>
           <GlobalSearch />
           <div className="ml-auto flex items-center gap-2">
             <StickyNotes />
-            <button aria-label="Help" className="rounded-xl p-2 text-slate-500 hover:bg-accent">
+            <button
+              aria-label="Help"
+              onClick={() => window.dispatchEvent(new CustomEvent("gwero:help"))}
+              className="rounded-xl p-2 text-slate-500 hover:bg-accent"
+            >
               <CircleHelp className="size-5" />
             </button>
             <DropdownMenu>
@@ -298,7 +368,7 @@ export function AppShell({
                         void markNotificationRead({ data: { notificationId: item.id } }).then(
                           () => {
                             void qc.invalidateQueries({ queryKey: ["notifications"] });
-                            if (item.action_url) window.location.assign(item.action_url);
+                            if (item.action_url) void router.navigate({ href: item.action_url });
                           },
                         );
                       }}
@@ -370,41 +440,104 @@ export function AppShell({
             </DropdownMenu>
           </div>
         </header>
-        <div className="mt-20 flex gap-1 overflow-x-auto border-b border-border bg-card px-3 py-2 md:hidden">
-          {allItems.map((item) => (
-            <Link
-              key={item.to}
-              to={item.to as never}
-              activeOptions={{ exact: item.to === "/" }}
-              className="whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium text-muted-foreground"
-              activeProps={{
-                className:
-                  "whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium bg-accent text-accent-foreground",
-              }}
-            >
-              {item.label}
-            </Link>
-          ))}
-        </div>
-        <main className="min-w-0 flex-1 overflow-x-clip p-4 md:px-6 md:pb-6 md:pt-24">
+        <main className="min-w-0 flex-1 overflow-x-clip px-4 pb-6 pt-24 md:px-6">
           <div className="mx-auto min-w-0 max-w-[1500px]">
-            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <div className="min-w-0">
-                <h1 className="break-words font-display text-2xl font-bold tracking-tight text-[#21143f]">
-                  {title}
-                </h1>
-                {description ? (
-                  <p className="mt-1.5 text-sm text-muted-foreground">{description}</p>
-                ) : null}
+            {queryFailure ? (
+              <div
+                role="alert"
+                className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-destructive/30 p-3 text-sm"
+              >
+                <span>{queryFailure}</span>
+                <button
+                  className="underline"
+                  onClick={() => {
+                    setQueryFailure(null);
+                    void qc.refetchQueries({ type: "active" });
+                  }}
+                >
+                  Try again
+                </button>
+                <button className="underline" onClick={() => setQueryFailure(null)}>
+                  Dismiss
+                </button>
               </div>
-              {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
-            </div>
+            ) : null}
             {children}
           </div>
         </main>
       </div>
-      <GlobalDocumentViewer />
+      {viewerOpen ? (
+        <Suspense fallback={null}>
+          <LazyDocumentViewer initialTarget={viewerTarget || undefined} />
+        </Suspense>
+      ) : null}
+      <PlatformHelp />
     </div>
+  );
+}
+
+export function AppShell({
+  title,
+  description,
+  actions,
+  children,
+}: {
+  title: string;
+  description?: string;
+  actions?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <>
+      {" "}
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="break-words font-display text-2xl font-bold tracking-tight text-[#21143f]">
+            {title}
+          </h1>
+          {description ? (
+            <p className="mt-1.5 text-sm text-muted-foreground">{description}</p>
+          ) : null}
+        </div>
+        {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
+      </div>
+      {children}
+    </>
+  );
+}
+
+function PlatformHelp() {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const show = () => setOpen(true);
+    window.addEventListener("gwero:help", show);
+    return () => window.removeEventListener("gwero:help", show);
+  }, []);
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetContent>
+        <SheetTitle>Using Gwero OS</SheetTitle>
+        <div className="mt-5 space-y-4 text-sm">
+          <p>
+            Use the navigation menu to open a workspace. Search by company, person or reference
+            using the search bar.
+          </p>
+          <p>
+            Changes are saved within the current page. Wait for the saved confirmation before
+            closing a form. A failed save keeps your input so you can retry.
+          </p>
+          <p>
+            For a loading error, use Retry. If the problem persists, note the page and time and
+            contact your system administrator. Do not create a duplicate record to work around a
+            loading error.
+          </p>
+          <p>
+            Campaigns use approval and a scheduled delivery queue. A message awaiting delivery
+            review should be checked in the provider's Sent folder before retrying.
+          </p>
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }
 

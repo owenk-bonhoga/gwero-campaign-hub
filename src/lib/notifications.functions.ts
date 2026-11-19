@@ -1,3 +1,4 @@
+import { validateContract } from "./input-contract";
 import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware, permissionMiddleware } from "./auth.middleware";
 
@@ -25,11 +26,30 @@ async function listForUser(userId: string) {
 
 export const getNotifications = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .handler(({ context }) => listForUser(context.user.id));
+  .handler(async ({ context }) => {
+    const { requirePageAccess } = await import("./page-access.server");
+    const items = await listForUser(context.user.id);
+    const permitted = await Promise.all(
+      items.map(async (item) => {
+        if (!item.action_url) return true;
+        try {
+          await requirePageAccess(item.action_url, context.user);
+          return true;
+        } catch (error) {
+          if (
+            /Permission denied|Document not found|Invalid document/.test((error as Error).message)
+          )
+            return false;
+          throw error;
+        }
+      }),
+    );
+    return items.filter((_, index) => permitted[index]);
+  });
 
 export const markNotificationRead = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((data: { notificationId: string }) => data)
+  .validator((data: { notificationId: string }) => validateContract(data, "markNotificationRead"))
   .handler(async ({ data, context }) => {
     const { serverDb } = await import("./db.server");
     const { error } = await serverDb

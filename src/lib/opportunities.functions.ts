@@ -1,3 +1,5 @@
+import { validateContract } from "./input-contract";
+import { decryptMailboxRow } from "./secret-crypto";
 import { createServerFn } from "@tanstack/react-start";
 import { permissionMiddleware } from "./auth.middleware";
 
@@ -191,7 +193,7 @@ export const listOpportunities = createServerFn({ method: "GET" })
       pageSize?: number;
       search?: string;
       archived?: boolean;
-    }) => data,
+    }) => validateContract(data, "listOpportunities"),
   )
   .handler(async ({ data }) => {
     assertKind(data.kind);
@@ -283,7 +285,9 @@ function restoredOpportunityStatus(kind: OpportunityKind) {
 
 export const archiveOpportunity = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("opportunities.manage")])
-  .validator((data: { kind: OpportunityKind; id: string; archived: boolean }) => data)
+  .validator((data: { kind: OpportunityKind; id: string; archived: boolean }) =>
+    validateContract(data, "archiveOpportunity"),
+  )
   .handler(async ({ data }) => {
     assertKind(data.kind);
     if (!/^[0-9a-f-]{36}$/i.test(data.id)) throw new Error("Invalid opportunity.");
@@ -320,7 +324,9 @@ export const archiveOpportunity = createServerFn({ method: "POST" })
 
 export const deleteOpportunity = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("opportunities.manage")])
-  .validator((data: { kind: OpportunityKind; id: string }) => data)
+  .validator((data: { kind: OpportunityKind; id: string }) =>
+    validateContract(data, "deleteOpportunity"),
+  )
   .handler(async ({ data }) => {
     assertKind(data.kind);
     if (!/^[0-9a-f-]{36}$/i.test(data.id)) throw new Error("Invalid opportunity.");
@@ -385,7 +391,9 @@ export const deleteOpportunity = createServerFn({ method: "POST" })
 
 export const createOpportunity = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("opportunities.manage")])
-  .validator((data: OpportunityInput & { sourceDocuments?: AttachmentMeta[] }) => data)
+  .validator((data: OpportunityInput & { sourceDocuments?: AttachmentMeta[] }) =>
+    validateContract(data, "createOpportunity"),
+  )
   .handler(async ({ data, context }) => {
     assertKind(data.kind);
     if (!data.title.trim()) throw new Error("Add the opportunity name.");
@@ -489,7 +497,9 @@ export const createOpportunity = createServerFn({ method: "POST" })
 
 export const getOpportunityWorkspace = createServerFn({ method: "GET" })
   .middleware([permissionMiddleware("opportunities.manage")])
-  .validator((data: { kind: OpportunityKind; id: string }) => data)
+  .validator((data: { kind: OpportunityKind; id: string }) =>
+    validateContract(data, "getOpportunityWorkspace"),
+  )
   .handler(async ({ data }) => {
     assertKind(data.kind);
     const db = await pool();
@@ -579,7 +589,9 @@ export const getOpportunityWorkspace = createServerFn({ method: "GET" })
 
 export const updateOpportunity = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("opportunities.manage")])
-  .validator((data: OpportunityInput & { id: string }) => data)
+  .validator((data: OpportunityInput & { id: string }) =>
+    validateContract(data, "updateOpportunity"),
+  )
   .handler(async ({ data }) => {
     assertKind(data.kind);
     const db = await pool();
@@ -663,7 +675,7 @@ export const saveChecklistItem = createServerFn({ method: "POST" })
       assigneeId?: string;
       dueAt?: string;
       documentRequired?: boolean;
-    }) => data,
+    }) => validateContract(data, "saveChecklistItem"),
   )
   .handler(async ({ data, context }) => {
     assertKind(data.kind);
@@ -725,7 +737,9 @@ export const saveChecklistItem = createServerFn({ method: "POST" })
 
 export const setChecklistStatus = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("opportunities.manage")])
-  .validator((data: { id: string; complete: boolean }) => data)
+  .validator((data: { id: string; complete: boolean }) =>
+    validateContract(data, "setChecklistStatus"),
+  )
   .handler(async ({ data, context }) => {
     const db = await pool();
     if (data.complete) {
@@ -757,7 +771,7 @@ export const setChecklistStatus = createServerFn({ method: "POST" })
 
 export const deleteChecklistItem = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("opportunities.manage")])
-  .validator((data: { id: string }) => data)
+  .validator((data: { id: string }) => validateContract(data, "deleteChecklistItem"))
   .handler(async ({ data }) => {
     await (await pool()).execute("DELETE FROM opportunity_checklist_items WHERE id = ?", [data.id]);
     return { ok: true };
@@ -774,7 +788,7 @@ export const addOpportunityDocument = createServerFn({ method: "POST" })
       attachment?: AttachmentMeta;
       displayName: string;
       role?: string;
-    }) => data,
+    }) => validateContract(data, "addOpportunityDocument"),
   )
   .handler(async ({ data, context }) => {
     assertKind(data.kind);
@@ -833,7 +847,9 @@ export const addOpportunityDocument = createServerFn({ method: "POST" })
 
 export const updateOpportunityDocument = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("opportunities.manage")])
-  .validator((data: { id: string; outgoingName: string; include: boolean }) => data)
+  .validator((data: { id: string; outgoingName: string; include: boolean }) =>
+    validateContract(data, "updateOpportunityDocument"),
+  )
   .handler(async ({ data }) => {
     await (
       await pool()
@@ -846,7 +862,7 @@ export const updateOpportunityDocument = createServerFn({ method: "POST" })
 
 export const deleteOpportunityDocument = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("opportunities.manage")])
-  .validator((data: { id: string }) => data)
+  .validator((data: { id: string }) => validateContract(data, "deleteOpportunityDocument"))
   .handler(async ({ data }) => {
     await (await pool()).execute("DELETE FROM opportunity_documents WHERE id = ?", [data.id]);
     return { ok: true };
@@ -856,7 +872,7 @@ export const addOpportunityComment = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("opportunities.manage")])
   .validator(
     (data: { kind: OpportunityKind; opportunityId: string; body: string; mentionIds?: string[] }) =>
-      data,
+      validateContract(data, "addOpportunityComment"),
   )
   .handler(async ({ data, context }) => {
     assertKind(data.kind);
@@ -914,7 +930,7 @@ export const linkCostSheet = createServerFn({ method: "POST" })
       opportunityId: string;
       costSheetId?: string;
       create?: { name: string; clientId?: string; currency: string; notes?: string };
-    }) => data,
+    }) => validateContract(data, "linkCostSheet"),
   )
   .handler(async ({ data }) => {
     assertKind(data.kind);
@@ -967,7 +983,7 @@ export const submitOpportunity = createServerFn({ method: "POST" })
       bodyHtml?: string;
       bodyText?: string;
       fileMode?: "separate" | "merged";
-    }) => data,
+    }) => validateContract(data, "submitOpportunity"),
   )
   .handler(async ({ data, context }) => {
     assertKind(data.kind);
@@ -1006,11 +1022,12 @@ export const submitOpportunity = createServerFn({ method: "POST" })
         data.mailboxId,
         context.user,
       )) as SerializableRecord;
-      const secret = rows<SerializableRecord>(
+      const storedSecret = rows<SerializableRecord>(
         await db.query("SELECT * FROM mailbox_secrets WHERE mailbox_id = ? LIMIT 1", [
           data.mailboxId,
         ]),
       )[0];
+      const secret = storedSecret ? decryptMailboxRow(storedSecret) : undefined;
       if (!mailbox) throw new Error("Sending account not found.");
       const signedBody = await applyActiveEmailSignature(
         db,
@@ -1172,7 +1189,7 @@ export const saveCurrency = createServerFn({ method: "POST" })
       symbol: string;
       isDefault?: boolean;
       isActive?: boolean;
-    }) => data,
+    }) => validateContract(data, "saveCurrency"),
   )
   .handler(async ({ data }) => {
     const db = await pool();
@@ -1198,7 +1215,7 @@ export const saveCurrency = createServerFn({ method: "POST" })
 
 export const deleteCurrency = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("settings.manage")])
-  .validator((data: { id: string }) => data)
+  .validator((data: { id: string }) => validateContract(data, "deleteCurrency"))
   .handler(async ({ data }) => {
     const db = await pool();
     const selected = rows<{ is_default: number }>(

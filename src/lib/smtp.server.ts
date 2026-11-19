@@ -1,127 +1,56 @@
-/** Tiny SMTP client (AUTH LOGIN / PLAIN, STARTTLS or implicit TLS). Server-only. */
-import { connectPlain, connectTls, upgradeTls, type LineSocket } from "./socket.server";
-
+import nodemailer from "nodemailer";
+import { safeAddress } from "./mail-safety";
 export interface SmtpConfig {
   host: string;
   port: number;
-  secure: boolean; // implicit TLS (usually port 465)
+  secure: boolean;
   username: string;
   password: string;
 }
-
 export interface OutgoingMail {
-  from: string; // formatted header value
+  from: string;
   envelopeFrom: string;
   to: string;
   cc?: string[];
   bcc?: string[];
-  raw: string; // full MIME message
+  raw: string;
 }
-
-function b64(value: string) {
-  return Buffer.from(value, "utf8").toString("base64");
+function transport(config: SmtpConfig) {
+  if (!config.host || !Number.isInteger(config.port) || config.port < 1 || config.port > 65535)
+    throw new Error("Invalid SMTP server configuration.");
+  return nodemailer.createTransport({
+    host: config.host,
+    port: config.port,
+    secure: Boolean(config.secure),
+    requireTLS: !config.secure,
+    tls: { rejectUnauthorized: true, minVersion: "TLSv1.2" },
+    auth: config.username ? { user: config.username, pass: config.password } : undefined,
+    connectionTimeout: 15000,
+    greetingTimeout: 10000,
+    socketTimeout: 30000,
+    disableFileAccess: true,
+    disableUrlAccess: true,
+  });
 }
-
-async function expect(socket: LineSocket, codes: number[], step: string) {
-  const res = await socket.readUntil((acc) =>
-    /^\d{3} [^\n]*\r?\n$/m.test(acc.split(/\r?\n/).filter(Boolean).slice(-1)[0] + "\n"),
-  );
-  const lines = res.trim().split(/\r?\n/);
-  const last = lines[lines.length - 1] ?? "";
-  const code = Number(last.slice(0, 3));
-  if (!codes.includes(code)) {
-    throw new Error(`${step} failed: ${last.trim()}`);
-  }
-  return res;
-}
-
-async function cmd(socket: LineSocket, line: string, codes: number[], step: string) {
-  socket.write(line + "\r\n");
-  return expect(socket, codes, step);
-}
-
 export async function smtpSend(config: SmtpConfig, mail: OutgoingMail): Promise<void> {
-  let socket = config.secure
-    ? await connectTls(config.host, config.port)
-    : await connectPlain(config.host, config.port);
-
+  const client = transport(config);
   try {
-    await expect(socket, [220], "Connecting");
-    let greeting = await cmd(
-      socket,
-      `EHLO ${(config.username.split("@")[1] || "localhost").trim()}`,
-      [250],
-      "Handshake",
-    );
-
-    if (!config.secure && /STARTTLS/i.test(greeting)) {
-      await cmd(socket, "STARTTLS", [220], "Starting TLS");
-      socket = await upgradeTls(socket, config.host);
-      greeting = await cmd(
-        socket,
-        `EHLO ${(config.username.split("@")[1] || "localhost").trim()}`,
-        [250],
-        "Handshake",
-      );
-    }
-
-    if (config.username) {
-      if (/AUTH[^\n]*PLAIN/i.test(greeting)) {
-        await cmd(
-          socket,
-          `AUTH PLAIN ${b64(`\u0000${config.username}\u0000${config.password}`)}`,
-          [235],
-          "Sign in",
-        );
-      } else {
-        await cmd(socket, "AUTH LOGIN", [334], "Sign in");
-        await cmd(socket, b64(config.username), [334], "Sign in");
-        await cmd(socket, b64(config.password), [235], "Sign in");
-      }
-    }
-
-    await cmd(socket, `MAIL FROM:<${mail.envelopeFrom}>`, [250], "Sender");
-    const rcpts = [mail.to, ...(mail.cc ?? []), ...(mail.bcc ?? [])].filter(Boolean);
-    for (const rcpt of rcpts) {
-      await cmd(socket, `RCPT TO:<${rcpt}>`, [250, 251], `Recipient ${rcpt}`);
-    }
-    await cmd(socket, "DATA", [354], "Sending");
-    const body = mail.raw.replace(/\r?\n/g, "\r\n").replace(/\r\n\./g, "\r\n..");
-    socket.write(body + "\r\n.\r\n");
-    await expect(socket, [250], "Delivery");
-    socket.write("QUIT\r\n");
+    await client.sendMail({
+      envelope: {
+        from: safeAddress(mail.envelopeFrom),
+        to: [mail.to, ...(mail.cc || []), ...(mail.bcc || [])].map(safeAddress),
+      },
+      raw: mail.raw,
+    });
   } finally {
-    socket.end();
+    client.close();
   }
 }
-
 export async function smtpVerify(config: SmtpConfig): Promise<void> {
-  let socket = config.secure
-    ? await connectTls(config.host, config.port)
-    : await connectPlain(config.host, config.port);
+  const client = transport(config);
   try {
-    await expect(socket, [220], "Connecting");
-    const domain = (config.username.split("@")[1] || "localhost").trim();
-    let greeting = await cmd(socket, `EHLO ${domain}`, [250], "Handshake");
-    if (!config.secure && /STARTTLS/i.test(greeting)) {
-      await cmd(socket, "STARTTLS", [220], "Starting TLS");
-      socket = await upgradeTls(socket, config.host);
-      greeting = await cmd(socket, `EHLO ${domain}`, [250], "Handshake");
-    }
-    if (/AUTH[^\n]*PLAIN/i.test(greeting)) {
-      await cmd(
-        socket,
-        `AUTH PLAIN ${b64(`\u0000${config.username}\u0000${config.password}`)}`,
-        [235],
-        "Sign in",
-      );
-    } else {
-      await cmd(socket, "AUTH LOGIN", [334], "Sign in");
-      await cmd(socket, b64(config.username), [334], "Sign in");
-      await cmd(socket, b64(config.password), [235], "Sign in");
-    }
-    socket.write("QUIT\r\n");
+    await client.verify();
   } finally {
-    socket.end();
+    client.close();
   }
 }

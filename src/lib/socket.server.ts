@@ -49,25 +49,36 @@ export class LineSocket {
     if (this.error) return Promise.reject(this.error);
     if (this.closed) return Promise.reject(new Error("Connection closed by server"));
     return new Promise<string>((resolve, reject) => {
-      const timer = setTimeout(
-        () => reject(new Error("Timed out waiting for the mail server")),
-        timeoutMs,
-      );
-      this.waiters.push((chunk) => {
+      const waiter = (chunk: string) => {
         clearTimeout(timer);
         if (this.error) reject(this.error);
         else if (!chunk && this.closed) reject(new Error("Connection closed by server"));
         else resolve(chunk);
-      });
+      };
+      const timer = setTimeout(() => {
+        this.waiters = this.waiters.filter((pending) => pending !== waiter);
+        this.socket.destroy();
+        reject(new Error("Timed out waiting for the mail server"));
+      }, timeoutMs);
+      this.waiters.push(waiter);
     });
   }
 
   /** Read until `isDone` accepts the accumulated response. */
   async readUntil(isDone: (acc: string) => boolean, timeoutMs = 20000): Promise<string> {
     let acc = "";
-    // eslint-disable-next-line no-constant-condition
+    const deadline = Date.now() + timeoutMs;
     while (true) {
-      acc += await this.readChunk(timeoutMs);
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) {
+        this.socket.destroy();
+        throw new Error("Timed out waiting for the mail server");
+      }
+      acc += await this.readChunk(remaining);
+      if (acc.length > 32 * 1024 * 1024) {
+        this.socket.destroy();
+        throw new Error("Mail response is too large");
+      }
       if (isDone(acc)) return acc;
     }
   }
@@ -127,8 +138,22 @@ export function connectTls(host: string, port: number): Promise<LineSocket> {
 
 export function upgradeTls(socket: LineSocket, host: string): Promise<LineSocket> {
   return new Promise((resolve, reject) => {
-    const secure = tls.connect({ socket: socket.raw as never, servername: host });
-    secure.once("secureConnect", () => resolve(new LineSocket(secure)));
-    secure.once("error", reject);
+    const secure = tls.connect({
+      socket: socket.raw as never,
+      servername: host,
+      minVersion: "TLSv1.2",
+    });
+    const timer = setTimeout(() => {
+      secure.destroy();
+      reject(new Error("TLS handshake timed out"));
+    }, 15000);
+    secure.once("secureConnect", () => {
+      clearTimeout(timer);
+      resolve(new LineSocket(secure));
+    });
+    secure.once("error", (error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
   });
 }

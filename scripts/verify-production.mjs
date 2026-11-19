@@ -6,9 +6,27 @@ const deadline = Date.now() + 20 * 60 * 1000;
 let lastSeen = "unavailable";
 while (Date.now() < deadline) {
   try {
-    const response = await fetch(url, { redirect: "follow", cache: "no-store" });
+    const response = await fetch(url, {
+      redirect: "follow",
+      cache: "no-store",
+      signal: AbortSignal.timeout(15000),
+    });
     lastSeen = response.headers.get("x-release-commit") || "missing";
     if (response.ok && lastSeen.toLowerCase() === expected) {
+      const health = await fetch(new URL("/api/health", url), {
+        cache: "no-store",
+        signal: AbortSignal.timeout(15000),
+      });
+      const status = await health.json();
+      if (!health.ok || status.database !== "connected")
+        throw new Error("Database health check failed");
+      const portal = await fetch(new URL("/s/release-smoke-missing", url), {
+        headers: { accept: "text/html" },
+        redirect: "manual",
+        signal: AbortSignal.timeout(15000),
+      });
+      if (portal.status >= 500 || portal.headers.get("location")?.includes("/login"))
+        throw new Error("Recipient portal is unavailable");
       console.log(`Production is healthy and identifies commit ${expected}.`);
       process.exit(0);
     }

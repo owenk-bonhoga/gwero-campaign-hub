@@ -51,6 +51,8 @@ const requiredTables = [
 ];
 
 const requiredColumns = [
+  ["campaign_recipients", "claimed_at"],
+  ["campaign_recipients", "dispatch_started_at"],
   ["attachment_files", "uploaded_by"],
   ["documents", "category_id"],
   ["documents", "owner_id"],

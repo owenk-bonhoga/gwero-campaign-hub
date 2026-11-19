@@ -10,9 +10,12 @@ export type DbInput = {
   orderBy?: string;
   ascending?: boolean;
   limit?: number;
+  offset?: number;
+  search?: { term: string; columns: string[] };
+  count?: boolean;
   conflict?: string;
 };
-export type DbResult<T> = { data: T; error: { message: string } | null };
+export type DbResult<T> = { data: T; error: { message: string } | null; count?: number };
 type Executor = (input: DbInput) => Promise<DbResult<unknown>>;
 
 class DbQuery<K extends TableName> implements PromiseLike<DbResult<AppRow<K>[]>> {
@@ -64,7 +67,18 @@ class DbQuery<K extends TableName> implements PromiseLike<DbResult<AppRow<K>[]>>
     this.input.limit = value;
     return this;
   }
+  range(from: number, to: number) {
+    this.input.offset = from;
+    this.input.limit = to - from + 1;
+    this.input.count = true;
+    return this;
+  }
+  search(term: string, columns: string[]) {
+    this.input.search = { term, columns };
+    return this;
+  }
   async single(): Promise<DbResult<AppRow<K> | null>> {
+    this.input.limit = 1;
     const result = await this.run();
     return {
       data: result.data?.[0] ?? null,
@@ -72,6 +86,7 @@ class DbQuery<K extends TableName> implements PromiseLike<DbResult<AppRow<K>[]>>
     };
   }
   async maybeSingle(): Promise<DbResult<AppRow<K> | null>> {
+    this.input.limit = 1;
     const result = await this.run();
     return { data: result.data?.[0] ?? null, error: result.error };
   }

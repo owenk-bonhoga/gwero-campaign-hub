@@ -1,6 +1,8 @@
+import { AppFrame } from "@/components/AppShell";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
+  useRouterState,
   Link,
   createRootRouteWithContext,
   useRouter,
@@ -116,11 +118,19 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const publicPage = pathname === "/login" || pathname.startsWith("/s/");
 
   return (
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      {publicPage ? (
+        <Outlet />
+      ) : (
+        <AppFrame>
+          <Outlet />
+        </AppFrame>
+      )}
       <Toaster richColors position="top-right" />
     </QueryClientProvider>
   );

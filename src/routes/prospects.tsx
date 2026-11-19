@@ -1,7 +1,11 @@
+import { useRouter } from "@tanstack/react-router";
 import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import * as XLSX from "xlsx";
+import type * as XLSX from "xlsx";
+import { prospectDirectory } from "@/lib/directory.functions";
+import { QueryState } from "@/components/QueryState";
+import { useDebounced } from "@/lib/use-debounced";
 import { toast } from "sonner";
 import { db } from "@/lib/db";
 import { AppShell } from "@/components/AppShell";
@@ -122,6 +126,7 @@ function AddProspectsDialog({
   categories: Array<{ id: string; name: string }>;
   onDone: () => void;
 }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<CompanyDraft>(emptyCompany());
   const [busy, setBusy] = useState(false);
@@ -166,7 +171,7 @@ function AddProspectsDialog({
       setDraft(emptyCompany());
       setOpen(false);
       onDone();
-      window.location.assign(`/prospects/${result.id}`);
+      void router.navigate({ href: `/prospects/${result.id}` });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not create prospect.");
     } finally {
@@ -626,6 +631,7 @@ function ImportDialog({ onDone }: { onDone: () => void }) {
     const buffer = await file.arrayBuffer();
     let book: XLSX.WorkBook;
     try {
+      const XLSX = await import("xlsx");
       book = XLSX.read(buffer, { sheetRows: 10002 });
     } catch {
       toast.error("That spreadsheet could not be read. Check the file and try again.");
@@ -635,6 +641,7 @@ function ImportDialog({ onDone }: { onDone: () => void }) {
     if (!sheetName) return;
     const sheet = book.Sheets[sheetName];
     if (!sheet) return;
+    const XLSX = await import("xlsx");
     const data = XLSX.utils.sheet_to_json<Row>(sheet, { defval: "" });
     if (data.length > 10000) {
       toast.error("Import up to 10,000 rows at a time.");
@@ -823,20 +830,27 @@ function ProspectsPage() {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [sortBy, setSortBy] = useState("name_asc");
-  const [visibleCount, setVisibleCount] = useState(30);
+  const term = useDebounced(search);
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  const { data: prospects = [], error: prospectsError } = useQuery({
-    queryKey: ["prospects"],
-    queryFn: async () => {
-      const { data, error } = await db
-        .from("prospects")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
+  const listing = useInfiniteQuery({
+    queryKey: ["prospects", "directory", term, categoryFilter, sortBy],
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) =>
+      prospectDirectory({
+        data: { search: term, category: categoryFilter, sort: sortBy, offset: pageParam },
+      }),
+    getNextPageParam: (last) => last.nextOffset ?? undefined,
   });
+  const visible = listing.data?.pages.flatMap((page) => page.rows) || [];
+  const contacts = listing.data?.pages.flatMap((page) => page.contacts) || [];
+  const total = listing.data?.pages[0]?.total || 0;
+  const contactMap = new Map<string, typeof contacts>();
+  for (const contact of contacts) {
+    const group = contactMap.get(contact.prospect_id) || [];
+    group.push(contact);
+    contactMap.set(contact.prospect_id, group);
+  }
   const { data: categories = [] } = useQuery({
     queryKey: ["prospect-categories"],
     queryFn: async () => {
@@ -845,53 +859,19 @@ function ProspectsPage() {
       return data;
     },
   });
-  const { data: contacts = [] } = useQuery({
-    queryKey: ["prospect-contacts"],
-    queryFn: async () => {
-      const { data, error } = await db.from("prospect_contacts").select("*").order("first_name");
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const filtered = prospects
-    .filter(
-      (p) =>
-        (categoryFilter === "all" || p.category_id === categoryFilter) &&
-        `${p.email} ${p.first_name ?? ""} ${p.last_name ?? ""} ${p.company ?? ""}`
-          .toLowerCase()
-          .includes(search.toLowerCase()),
-    )
-    .sort((a, b) => {
-      const companyA = a.company || a.email;
-      const companyB = b.company || b.email;
-      if (sortBy === "name_desc") return companyB.localeCompare(companyA);
-      if (sortBy === "newest")
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      if (sortBy === "oldest")
-        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-      if (sortBy === "contacts_desc") {
-        const countA = contacts.filter((contact) => contact.prospect_id === a.id).length;
-        const countB = contacts.filter((contact) => contact.prospect_id === b.id).length;
-        return countB - countA || companyA.localeCompare(companyB);
-      }
-      return companyA.localeCompare(companyB);
-    });
-  const visible = filtered.slice(0, visibleCount);
-  useEffect(() => setVisibleCount(30), [search, categoryFilter, sortBy]);
+  const { hasNextPage, isFetching, fetchNextPage } = listing;
   useEffect(() => {
     const target = loadMoreRef.current;
     if (!target) return;
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry?.isIntersecting)
-          setVisibleCount((count) => Math.min(count + 30, filtered.length));
+        if (entry?.isIntersecting && hasNextPage && !isFetching) void fetchNextPage();
       },
       { rootMargin: "300px" },
     );
     observer.observe(target);
     return () => observer.disconnect();
-  }, [filtered.length]);
+  }, [hasNextPage, isFetching, fetchNextPage]);
 
   return (
     <AppShell
@@ -915,15 +895,16 @@ function ProspectsPage() {
         </>
       }
     >
-      {prospectsError ? (
-        <div className="mb-4 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
-          Prospects could not be loaded: {prospectsError.message}
-        </div>
-      ) : null}
+      <QueryState
+        loading={listing.isPending}
+        error={listing.error}
+        retry={() => void listing.refetch()}
+      />
       <Card>
         <CardContent className="pt-4">
           <div className="mb-4 grid min-w-0 gap-3 md:grid-cols-[minmax(220px,1fr)_minmax(190px,280px)_minmax(180px,230px)]">
             <Input
+              aria-label="Search prospects"
               placeholder="Search by name, email or company"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -956,7 +937,7 @@ function ProspectsPage() {
             </Select>
           </div>
           <div className="relative">
-            <Table className="table-fixed" containerClassName="overflow-visible">
+            <Table className="table-fixed min-w-[560px]" containerClassName="overflow-x-auto">
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="sticky top-20 z-20 w-[36%] bg-background/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/85">
@@ -972,7 +953,7 @@ function ProspectsPage() {
               </TableHeader>
               <TableBody>
                 {visible.map((p) => {
-                  const people = contacts.filter((contact) => contact.prospect_id === p.id);
+                  const people = contactMap.get(p.id) || [];
                   return (
                     <TableRow key={p.id}>
                       <TableCell className="min-w-0 font-medium">
@@ -991,7 +972,7 @@ function ProspectsPage() {
                           <Link
                             to="/prospects/$id"
                             params={{ id: p.id }}
-                            className="min-w-0 truncate text-violet-800 hover:underline"
+                            className="min-w-0 break-words text-violet-800 hover:underline"
                           >
                             {p.company || "Open prospect"}
                           </Link>
@@ -1063,7 +1044,7 @@ function ProspectsPage() {
                     </TableRow>
                   );
                 })}
-                {filtered.length === 0 ? (
+                {!listing.isPending && !listing.error && visible.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={3} className="py-10 text-center text-muted-foreground">
                       No prospects match the current search and category filters.
@@ -1075,16 +1056,16 @@ function ProspectsPage() {
           </div>
           <div ref={loadMoreRef} className="h-2" aria-hidden="true" />
           <div className="mt-4 text-xs text-muted-foreground">
-            <Badge variant="secondary">{visible.length}</Badge> of {filtered.length} matching
-            prospects loaded
-            {visible.length < filtered.length ? " · Scroll to load more" : ""}
+            <Badge variant="secondary">{visible.length}</Badge> of {total} matching prospects loaded
+            {listing.hasNextPage ? " · Scroll to load more" : ""}
           </div>
-          {visible.length < filtered.length ? (
+          {listing.hasNextPage ? (
             <Button
               className="mt-3"
               size="sm"
               variant="outline"
-              onClick={() => setVisibleCount((count) => Math.min(count + 30, filtered.length))}
+              disabled={listing.isFetchingNextPage}
+              onClick={() => void listing.fetchNextPage()}
             >
               Load more prospects
             </Button>
