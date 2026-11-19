@@ -196,7 +196,7 @@ function StampEditor({
                   <span>{design.distressed}%</span>
                 </div>
                 <input
-                  className="mt-2 w-full accent-violet-700"
+                  className="mt-2 w-full accent-cyan-700"
                   type="range"
                   min="0"
                   max="85"
@@ -210,7 +210,7 @@ function StampEditor({
                   <span>{design.rotation}°</span>
                 </div>
                 <input
-                  className="mt-2 w-full accent-violet-700"
+                  className="mt-2 w-full accent-cyan-700"
                   type="range"
                   min="-12"
                   max="12"
@@ -302,9 +302,9 @@ function SignatureEditor({ onClose }: { onClose: () => void }) {
               placeholder="Christian – formal signature"
             />
           </div>
-          <label className="grid min-h-36 cursor-pointer place-items-center rounded-xl border border-dashed bg-slate-50 p-5 text-center hover:border-violet-400">
+          <label className="grid min-h-36 cursor-pointer place-items-center rounded-xl border border-dashed bg-slate-50 p-5 text-center hover:border-cyan-400">
             <span>
-              <Upload className="mx-auto size-6 text-violet-700" />
+              <Upload className="mx-auto size-6 text-cyan-700" />
               <span className="mt-2 block text-sm font-semibold">
                 {file?.name || "Choose signature image"}
               </span>
@@ -395,7 +395,7 @@ function DocumentToolsPage() {
         ].map((item) => (
           <Card key={item.label} className="shadow-sm">
             <CardContent className="flex items-center gap-3 p-4">
-              <span className="grid size-9 place-items-center rounded-lg bg-violet-50 text-violet-700">
+              <span className="grid size-9 place-items-center rounded-lg bg-cyan-50 text-cyan-700">
                 <item.icon className="size-4" />
               </span>
               <div className="min-w-0 flex-1">
@@ -415,7 +415,7 @@ function DocumentToolsPage() {
         <TabsContent value="library" className="mt-4">
           {isLoading ? (
             <div className="grid min-h-48 place-items-center">
-              <LoaderCircle className="size-6 animate-spin text-violet-700" />
+              <LoaderCircle className="size-6 animate-spin text-cyan-700" />
             </div>
           ) : data?.marks.length ? (
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -442,7 +442,7 @@ function DocumentToolsPage() {
                       )}
                     </div>
                     <div className="flex items-center gap-3 border-t p-4">
-                      <span className="grid size-8 place-items-center rounded-lg bg-violet-50 text-violet-700">
+                      <span className="grid size-8 place-items-center rounded-lg bg-cyan-50 text-cyan-700">
                         {mark.type === "stamp" ? (
                           <Stamp className="size-4" />
                         ) : (
@@ -529,7 +529,7 @@ function DocumentToolsPage() {
                     <div className="flex items-center gap-2">
                       <a
                         href={attachmentUrl(item.outputPath)}
-                        className="truncate text-sm font-semibold hover:text-violet-700 hover:underline"
+                        className="truncate text-sm font-semibold hover:text-cyan-700 hover:underline"
                       >
                         {item.outputName}
                       </a>

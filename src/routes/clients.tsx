@@ -3,15 +3,22 @@ import { useDebounced } from "@/lib/use-debounced";
 import { QueryState } from "@/components/QueryState";
 import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Building2, Mail, Plus, Search, UsersRound } from "lucide-react";
+import { Building2, Plus, Search, UsersRound } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { db } from "@/lib/db";
 
 export const Route = createFileRoute("/clients")({ component: ClientsRoute });
@@ -41,13 +48,14 @@ function ClientsPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [offset, setOffset] = useState(0);
+  const [createOpen, setCreateOpen] = useState(false);
   const term = useDebounced(search);
   const listing = useQuery({
     queryKey: ["clients", "directory", term, offset],
     queryFn: () => clientDirectory({ data: { search: term, offset } }),
     placeholderData: keepPreviousData,
   });
-  const filtered = listing.data?.rows || [];
+  const clients = listing.data?.rows || [];
   const create = useMutation({
     mutationFn: async () => {
       if (!name.trim()) throw new Error("Client name is required.");
@@ -59,162 +67,186 @@ function ClientsPage() {
     onSuccess: () => {
       setName("");
       setEmail("");
+      setCreateOpen(false);
       toast.success("Client added.");
       void qc.invalidateQueries({ queryKey: ["clients"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (error: Error) => toast.error(error.message),
   });
+
   return (
     <AppShell
       title="Clients"
-      description="Every account, relationship and piece of work in one place."
+      description="The organisations and people behind your work."
+      actions={
+        <Button onClick={() => setCreateOpen(true)}>
+          <Plus className="size-4" /> Add client
+        </Button>
+      }
     >
-      <Card className="mb-6 overflow-hidden border-primary/15 bg-gradient-to-br from-card via-card to-primary/5">
-        <CardContent className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-          <div>
-            <p className="font-display text-lg font-semibold">Client directory</p>
-            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-              Open an account to see its opportunities, commercial history, delivery work and
-              contacts.
-            </p>
-            <div className="relative mt-4 max-w-xl">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add client</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="client-name">Client name</Label>
               <Input
-                className="h-11 bg-background pl-10"
-                aria-label="Search clients"
-                placeholder="Search clients, companies, email or industry"
-                value={search}
-                onChange={(event) => {
-                  setSearch(event.target.value);
-                  setOffset(0);
-                }}
+                id="client-name"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder="Organisation or client name"
+                autoFocus
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="client-email">Email address</Label>
+              <Input
+                id="client-email"
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="contact@example.com"
               />
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Input
-              className="w-48 bg-background"
-              aria-label="Client name"
-              placeholder="Client name"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-            />
-            <Input
-              className="w-56 bg-background"
-              type="email"
-              aria-label="Client email"
-              placeholder="Email address"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-            />
-            <Button onClick={() => create.mutate()} disabled={create.isPending}>
-              <Plus className="size-4" /> {create.isPending ? "Adding…" : "Add client"}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+              Cancel
             </Button>
+            <Button onClick={() => create.mutate()} disabled={create.isPending}>
+              {create.isPending ? "Adding…" : "Add client"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <section className="gwero-panel p-5 md:p-6">
+        <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex w-max max-w-full gap-1 rounded-[11px] bg-[#f0f4f6] p-1">
+            <span className="rounded-lg bg-white px-3 py-2 text-xs font-semibold text-[#1b3547] shadow-sm">
+              Clients
+            </span>
+            <Link
+              to="/prospects"
+              className="rounded-lg px-3 py-2 text-xs font-semibold text-[#8a99a5] hover:text-[#1b3547]"
+            >
+              Prospects
+            </Link>
           </div>
-        </CardContent>
-      </Card>
-      <div className="mb-3 flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          <span className="font-semibold text-foreground">{listing.data?.total ?? "…"}</span>{" "}
-          {listing.data?.total === 1 ? "client" : "clients"}
-        </p>
-      </div>
-      <QueryState
-        loading={listing.isPending}
-        error={listing.error}
-        retry={() => void listing.refetch()}
-      />
-      {filtered.length ? (
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {filtered.map((client) => {
-            const displayName = client.company || client.name;
-            return (
-              <Link
-                key={client.id}
-                to="/clients/$id"
-                params={{ id: client.id }}
-                className="group block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <Card className="h-full overflow-hidden transition duration-200 group-hover:-translate-y-0.5 group-hover:border-primary/30 group-hover:shadow-raised">
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-3">
-                      <Avatar className="size-14 rounded-xl border bg-white shadow-sm">
-                        <AvatarImage
-                          src={client.logo_path || undefined}
-                          alt={`${displayName} logo`}
-                          className="object-contain p-2"
-                        />
-                        <AvatarFallback className="rounded-2xl bg-primary/10 font-display text-lg font-semibold text-primary">
-                          {initials(displayName) || <Building2 className="size-6" />}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <h2 className="truncate font-display font-semibold">{displayName}</h2>
-                            {client.company && client.name !== client.company ? (
-                              <p className="truncate text-sm text-muted-foreground">
-                                {client.name}
-                              </p>
-                            ) : null}
-                          </div>
-                          <Badge
-                            variant={client.status === "active" ? "default" : "secondary"}
-                            className="capitalize"
-                          >
-                            {client.status}
-                          </Badge>
-                        </div>
-                        <p className="mt-3 truncate text-sm text-muted-foreground">
-                          {client.industry || "Industry not set"}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="mt-4 flex items-center justify-between border-t pt-3 text-sm">
-                      <span className="flex min-w-0 items-center gap-2 text-muted-foreground">
-                        <Mail className="size-4 shrink-0" />
-                        <span className="truncate">{client.email || "No email address"}</span>
-                      </span>
-                      <span className="ml-3 shrink-0 font-medium text-primary">Open →</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            );
-          })}
+          <label className="relative w-full md:max-w-[350px]">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#99aab5]" />
+            <Input
+              className="pl-10"
+              aria-label="Search clients"
+              placeholder="Find a client"
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setOffset(0);
+              }}
+            />
+          </label>
         </div>
-      ) : !listing.isPending && !listing.error ? (
-        <Card className="border-dashed">
-          <CardContent className="grid min-h-40 place-items-center p-5 text-center">
+
+        <QueryState
+          loading={listing.isPending}
+          error={listing.error}
+          retry={() => void listing.refetch()}
+        />
+
+        {clients.length ? (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[680px] border-collapse">
+              <thead>
+                <tr className="border-b text-left text-[10px] font-bold uppercase tracking-[0.07em] text-[#9baab5]">
+                  <th className="px-3 py-3.5">Company</th>
+                  <th className="px-3 py-3.5">Industry</th>
+                  <th className="px-3 py-3.5">Relationship</th>
+                  <th className="px-3 py-3.5">Email</th>
+                </tr>
+              </thead>
+              <tbody>
+                {clients.map((client) => {
+                  const displayName = client.company || client.name;
+                  return (
+                    <tr key={client.id} className="group border-b last:border-0 hover:bg-[#f7fbfc]">
+                      <td className="px-3 py-3.5">
+                        <Link
+                          to="/clients/$id"
+                          params={{ id: client.id }}
+                          className="flex items-center gap-3 font-semibold text-[#26374d]"
+                        >
+                          <Avatar className="size-9 rounded-[10px] border bg-white">
+                            <AvatarImage
+                              src={client.logo_path || undefined}
+                              alt={`${displayName} logo`}
+                              className="object-contain p-1.5"
+                            />
+                            <AvatarFallback className="rounded-[9px] bg-[#eaf7f8] text-[10px] font-semibold text-[#197c8e]">
+                              {initials(displayName) || <Building2 className="size-4" />}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="max-w-[260px] truncate">{displayName}</span>
+                        </Link>
+                      </td>
+                      <td className="px-3 py-3.5 text-xs text-[#697b8b]">
+                        {client.industry || "Not set"}
+                      </td>
+                      <td className="px-3 py-3.5">
+                        <Badge variant={client.status === "active" ? "default" : "secondary"}>
+                          {client.status === "active" ? "Client" : client.status}
+                        </Badge>
+                      </td>
+                      <td className="max-w-[240px] truncate px-3 py-3.5 text-xs text-[#697b8b]">
+                        {client.email || "No email address"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : !listing.isPending && !listing.error ? (
+          <div className="grid min-h-48 place-items-center border-t text-center">
             <div>
-              <UsersRound className="mx-auto size-10 text-muted-foreground" />
-              <h2 className="mt-4 font-display text-lg font-semibold">
+              <UsersRound className="mx-auto size-9 text-[#9baab5]" />
+              <h2 className="mt-4 text-base font-semibold">
                 {search ? "No matching clients" : "No clients yet"}
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                {search
-                  ? "Try a different search term."
-                  : "Convert a prospect or add a client above."}
+                {search ? "Try a different search term." : "Add a client to begin."}
               </p>
             </div>
-          </CardContent>
-        </Card>
-      ) : null}
-      <div className="mt-4 flex gap-3">
-        <Button
-          variant="outline"
-          disabled={!offset || listing.isFetching}
-          onClick={() => setOffset(Math.max(0, offset - 30))}
-        >
-          Previous
-        </Button>
-        <Button
-          variant="outline"
-          disabled={listing.data?.nextOffset == null || listing.isFetching}
-          onClick={() => setOffset(listing.data?.nextOffset ?? offset)}
-        >
-          Next
-        </Button>
+          </div>
+        ) : null}
+      </section>
+
+      <div className="mt-4 flex items-center justify-between gap-3">
+        <p className="text-xs text-muted-foreground">
+          {listing.data?.total == null
+            ? "Updating…"
+            : listing.data.total === 0
+              ? "0 of 0"
+              : `${offset + 1}–${Math.min(offset + clients.length, listing.data.total)} of ${listing.data.total}`}
+        </p>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            disabled={!offset || listing.isFetching}
+            onClick={() => setOffset(Math.max(0, offset - 30))}
+          >
+            Previous
+          </Button>
+          <Button
+            variant="outline"
+            disabled={listing.data?.nextOffset == null || listing.isFetching}
+            onClick={() => setOffset(listing.data?.nextOffset ?? offset)}
+          >
+            Next
+          </Button>
+        </div>
       </div>
     </AppShell>
   );

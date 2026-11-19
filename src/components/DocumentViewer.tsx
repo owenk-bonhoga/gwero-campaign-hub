@@ -169,7 +169,7 @@ function PreviewBody({ preview }: { preview: PreviewData }) {
     return (
       <div className="h-full overflow-auto bg-slate-100 p-4 md:p-8">
         <article className="mx-auto min-h-full max-w-4xl rounded-xl bg-white px-6 py-8 shadow-sm md:px-12">
-          <p className="mb-5 text-xs font-semibold uppercase tracking-wide text-violet-600">
+          <p className="mb-5 text-xs font-semibold uppercase tracking-wide text-cyan-700">
             {preview.label} preview
           </p>
           <pre className="whitespace-pre-wrap break-words font-sans text-sm leading-7 text-slate-800">
@@ -298,7 +298,7 @@ export function GlobalDocumentViewer({
         <DialogContent className="flex h-[92vh] w-[96vw] max-w-7xl grid-rows-none flex-col gap-0 overflow-hidden p-0">
           <DialogHeader className="border-b px-5 py-4 pr-14 text-left">
             <div className="flex min-w-0 items-center gap-3">
-              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-violet-50 text-violet-700">
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-cyan-50 text-cyan-700">
                 <Icon className="size-5" />
               </span>
               <div className="min-w-0 flex-1">

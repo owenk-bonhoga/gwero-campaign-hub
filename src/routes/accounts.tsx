@@ -258,7 +258,7 @@ function AccountsPage() {
                   className="grid gap-3 px-4 py-3 transition hover:bg-slate-50/80 lg:grid-cols-[minmax(0,1.5fr)_150px_minmax(0,1fr)_140px_auto] lg:items-center"
                 >
                   <div className="flex min-w-0 items-center gap-3">
-                    <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-violet-50 text-violet-700">
+                    <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-cyan-50 text-cyan-700">
                       <KeyRound className="size-4" />
                     </span>
                     <div className="min-w-0">
@@ -449,7 +449,7 @@ function AccountFormDialog({
             className="sm:col-span-2"
           />
           <div className="sm:col-span-2 mt-1 flex items-center gap-2 border-t pt-3">
-            <LockKeyhole className="size-4 text-violet-700" />
+            <LockKeyhole className="size-4 text-cyan-700" />
             <p className="text-sm font-semibold">Encrypted login details</p>
           </div>
           <Field
@@ -584,7 +584,7 @@ function CredentialsDialog({
               onCopy={() => void copy("Account number", credentials.accountNumber)}
             />
             <div className="flex items-center gap-3 rounded-xl border px-3 py-2.5">
-              <KeyRound className="size-4 shrink-0 text-violet-700" />
+              <KeyRound className="size-4 shrink-0 text-cyan-700" />
               <div className="min-w-0 flex-1">
                 <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                   Password
@@ -658,7 +658,7 @@ function CredentialRow({
 }) {
   return (
     <div className="flex items-center gap-3 rounded-xl border px-3 py-2.5">
-      <Icon className="size-4 shrink-0 text-violet-700" />
+      <Icon className="size-4 shrink-0 text-cyan-700" />
       <div className="min-w-0 flex-1">
         <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
           {label}

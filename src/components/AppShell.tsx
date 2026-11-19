@@ -3,7 +3,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { lazy, Suspense, useState, useEffect, type CSSProperties, type ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
-  LayoutDashboard,
   Users,
   Send,
   Inbox,
@@ -36,6 +35,10 @@ import {
   ChevronDown,
   CalendarDays,
   Share2,
+  Home,
+  ChartNoAxesColumn,
+  Layers3,
+  Grid2X2,
 } from "lucide-react";
 import { getPublicBranding } from "@/lib/settings.functions";
 import { mayAccessPage } from "@/lib/page-access";
@@ -66,30 +69,31 @@ const nav = (to: string, label: string, icon: LucideIcon): NavItem => ({ to, lab
 
 const navGroups = [
   {
-    label: "Overview",
+    label: "Relationships",
+    icon: Users,
     items: [
-      nav("/", "Dashboard", LayoutDashboard),
-      nav("/meetings", "Calendar & meetings", CalendarDays),
+      nav("/clients", "Clients", Building2),
+      nav("/prospects", "Prospects", Users),
+      nav("/vendors", "Vendors", Truck),
     ],
   },
   {
     label: "Sales",
+    icon: ChartNoAxesColumn,
     items: [
-      nav("/clients", "Clients", Building2),
-      nav("/prospects", "Prospects", Users),
+      nav("/deals", "Deals & pipeline", Handshake),
       nav("/campaigns", "Campaigns", Send),
-      nav("/inbox", "Replies", Inbox),
-      nav("/deals", "Deals", Handshake),
+      nav("/inbox", "Inbox", Inbox),
       nav("/quotations", "Quotations", FileText),
       nav("/cost-sheets", "Cost sheets", Calculator),
-      nav("/vendors", "Vendors", Truck),
       nav("/marketing", "Marketing", Megaphone),
     ],
   },
   {
-    label: "Bidding",
+    label: "Bids & tenders",
+    icon: Gavel,
     items: [
-      nav("/bids", "Bids", Gavel),
+      nav("/bids", "Bid workspace", Gavel),
       nav("/prequalifications", "EOI / Prequalification", BadgeCheck),
       nav("/rfps", "RFPs", FileQuestion),
       nav("/rfqs", "RFQs", FileInput),
@@ -97,31 +101,29 @@ const navGroups = [
   },
   {
     label: "Delivery",
+    icon: Layers3,
     items: [
       nav("/projects", "Projects", FolderKanban),
+      nav("/tasks", "Tasks & activities", ListChecks),
       nav("/jobs", "Jobs", Wrench),
-      nav("/tasks", "Tasks & Activities", ListChecks),
       nav("/procurement", "Procurement", ShoppingCart),
     ],
   },
   {
-    label: "People",
+    label: "Operations",
+    icon: Grid2X2,
     items: [
+      nav("/finance", "Finance & accounts", Receipt),
       nav("/recruitment", "Recruitment", UserPlus),
-      nav("/hr", "HR", IdCard),
+      nav("/hr", "People & HR", IdCard),
       nav("/payroll", "Payroll", Wallet),
-    ],
-  },
-  {
-    label: "Business",
-    items: [
       nav("/documents", "Documents", Files),
       nav("/secure-shares", "Secure sharing", Share2),
       nav("/document-tools", "Stamps & signatures", Stamp),
       nav("/accounts", "Portal accounts", KeyRound),
-      nav("/finance", "Finance & Accounts", Receipt),
       nav("/agreements", "Agreements & SLAs", FileSignature),
-      nav("/settings", "Settings", Settings),
+      nav("/meetings", "Calendar & meetings", CalendarDays),
+      nav("/settings", "Administration", Settings),
     ],
   },
 ];
@@ -130,6 +132,17 @@ export function AppFrame({ children }: { children: ReactNode }) {
   const router = useRouter();
   const location = useRouterState({ select: (state) => state.location });
   const [menuOpen, setMenuOpen] = useState(false);
+  const activeWorkspace =
+    navGroups.find((group) =>
+      group.items.some(
+        (item) => location.pathname === item.to || location.pathname.startsWith(`${item.to}/`),
+      ),
+    )?.label ?? null;
+  const [expandedWorkspace, setExpandedWorkspace] = useState<string | null>(activeWorkspace);
+  useEffect(() => {
+    setExpandedWorkspace(activeWorkspace);
+    setMenuOpen(false);
+  }, [activeWorkspace, location.pathname]);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerTarget, setViewerTarget] = useState<{
     url: string;
@@ -249,105 +262,172 @@ export function AppFrame({ children }: { children: ReactNode }) {
       className="flex min-h-screen max-w-full overflow-x-clip bg-background"
       style={
         {
-          fontFamily: `${brand["font_family"] || "Arial"}, system-ui, sans-serif`,
-          "--font-body": `${brand["font_family"] || "Arial"}, system-ui, sans-serif`,
-          "--font-display": `${brand["font_family"] || "Arial"}, system-ui, sans-serif`,
-          "--primary": brand["primary_color"] || undefined,
-          "--ring": brand["primary_color"] || undefined,
-          "--sidebar-primary": brand["primary_color"] || undefined,
-          "--accent": brand["accent_color"] || undefined,
-          "--sidebar-accent": brand["accent_color"] || undefined,
-          "--gwero-brand": brand["primary_color"] || "#5b21b6",
+          fontFamily: brand["font_family"] || undefined,
+          "--font-body": brand["font_family"] || undefined,
+          "--font-display": brand["font_family"] || undefined,
         } as CSSProperties
       }
     >
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-violet-100 bg-white md:flex">
-        <div className="flex h-20 items-center gap-3 px-6">
+      <aside className="gwero-sidebar fixed inset-y-0 left-0 z-40 hidden w-[246px] flex-col border-r bg-white min-[871px]:flex">
+        <div className="flex h-[82px] items-center gap-3 px-7">
           {brand["logo_url"] ? (
             <img
               src={brand["logo_url"]}
               alt={`${systemName} logo`}
-              className="h-10 w-10 rounded-xl object-contain"
+              className="max-h-11 w-[126px] object-contain object-left"
             />
           ) : (
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--gwero-brand)] text-sm font-black text-white shadow-lg shadow-violet-200">
-              {systemName.charAt(0)}
-            </div>
+            <img
+              src="/gwero-logo.png"
+              alt="GWERO logo"
+              className="max-h-11 w-[126px] object-contain object-left"
+            />
           )}
-          <div>
-            <span className="font-display text-xl font-bold text-[#28104f]">{systemName}</span>
-            <p className="text-[11px] font-medium text-violet-500">Operations system</p>
-          </div>
+          <span className="border-l pl-2 text-[10px] font-bold tracking-[0.18em] text-[#17243d]">
+            OS
+          </span>
         </div>
-        <nav className="gwero-scrollbar flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-3 py-2">
-          {visibleGroups.map((group) => (
-            <div key={group.label} className="space-y-1">
-              <p className="px-4 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                {group.label}
-              </p>
-              {group.items.map((item) => (
-                <Link
-                  key={item.to}
-                  to={item.to as never}
-                  onMouseEnter={() => warmPage(item.to)}
-                  onFocus={() => warmPage(item.to)}
-                  activeOptions={{ exact: item.to === "/" }}
-                  className="flex items-center gap-3 rounded-xl px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-accent hover:text-accent-foreground"
-                  activeProps={{
-                    className:
-                      "flex items-center gap-3 rounded-xl px-4 py-2 text-sm font-semibold bg-accent text-accent-foreground",
-                  }}
+        <nav className="gwero-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-5">
+          <Link
+            to="/"
+            activeOptions={{ exact: true }}
+            className="gwero-workspace-link mb-3"
+            activeProps={{ className: "gwero-workspace-link mb-3 is-active" }}
+          >
+            <Home className="size-[18px]" />
+            <span>Home</span>
+          </Link>
+          <div className="mb-3 border-t" />
+          {visibleGroups.map((group) => {
+            const expanded = expandedWorkspace === group.label;
+            const active = activeWorkspace === group.label;
+            const submenuId = `workspace-${group.label.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-")}`;
+            return (
+              <div key={group.label} className="mb-1">
+                <button
+                  type="button"
+                  className={`gwero-workspace-link w-full ${active ? "is-active" : ""}`}
+                  aria-expanded={expanded}
+                  aria-controls={submenuId}
+                  onClick={() => setExpandedWorkspace(expanded ? null : group.label)}
                 >
-                  <item.icon className="h-4 w-4" />
-                  {item.label}
-                </Link>
-              ))}
-            </div>
-          ))}
-        </nav>
-        <div className="m-3 rounded-xl bg-gradient-to-br from-[#f5efff] to-[#ede4ff] p-3">
-          <p className="font-semibold text-[#321568]">Build better business.</p>
-          <p className="mt-1 text-xs leading-5 text-violet-600">One connected operating system.</p>
-        </div>
-      </aside>
-
-      <div className="flex w-full min-w-0 flex-1 flex-col md:pl-64">
-        <header className="fixed left-0 right-0 top-0 z-30 flex min-h-20 items-center gap-4 border-b border-violet-100 bg-white/95 px-5 backdrop-blur md:left-64 md:px-8">
-          <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
-            <SheetTrigger className="rounded-lg p-2 md:hidden" aria-label="Open navigation">
-              <Menu className="size-5" />
-            </SheetTrigger>
-            <SheetContent side="left" className="overflow-y-auto">
-              <SheetTitle>Navigate Gwero</SheetTitle>
-              <nav aria-label="Mobile navigation" className="mt-5 space-y-5">
-                {visibleGroups.map((group) => (
-                  <div key={group.label}>
-                    <p className="text-xs font-semibold uppercase text-muted-foreground">
-                      {group.label}
-                    </p>
+                  <group.icon className="size-[18px]" />
+                  <span>{group.label}</span>
+                  <ChevronDown
+                    className={`ml-auto size-3.5 transition-transform ${expanded ? "rotate-180" : ""}`}
+                  />
+                </button>
+                {expanded ? (
+                  <div id={submenuId} className="ml-[21px] mt-1 space-y-0.5 border-l pl-4">
                     {group.items.map((item) => (
                       <Link
                         key={item.to}
                         to={item.to as never}
-                        onClick={() => setMenuOpen(false)}
-                        className="flex items-center gap-3 rounded-lg p-3"
+                        onMouseEnter={() => warmPage(item.to)}
+                        onFocus={() => warmPage(item.to)}
+                        className="gwero-subnav-link"
+                        activeProps={{ className: "gwero-subnav-link is-active" }}
                       >
-                        <item.icon className="size-4" />
                         {item.label}
                       </Link>
                     ))}
                   </div>
-                ))}
+                ) : null}
+              </div>
+            );
+          })}
+        </nav>
+        <Link to={"/settings" as never} className="gwero-sidebar-footer mx-4 mb-5">
+          <Settings className="size-4" />
+          <span>Settings · Workspace</span>
+        </Link>
+      </aside>
+
+      <div className="flex w-full min-w-0 flex-1 flex-col min-[871px]:pl-[246px]">
+        <header className="gwero-topbar fixed left-0 right-0 top-0 z-30 flex h-[68px] items-center gap-3 border-b bg-background/95 px-4 backdrop-blur-xl min-[871px]:left-[246px] min-[871px]:h-[82px] min-[871px]:px-10">
+          <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+            <SheetTrigger
+              className="rounded-lg p-2 min-[871px]:hidden"
+              aria-label="Open navigation"
+            >
+              <Menu className="size-5" />
+            </SheetTrigger>
+            <SheetContent side="left" className="w-[260px] overflow-y-auto p-4">
+              <SheetTitle className="sr-only">Navigate Gwero OS</SheetTitle>
+              <div className="flex h-14 items-center gap-3 px-3">
+                {brand["logo_url"] ? (
+                  <img
+                    src={brand["logo_url"]}
+                    alt={`${systemName} logo`}
+                    className="max-h-10 w-[126px] object-contain object-left"
+                  />
+                ) : (
+                  <img
+                    src="/gwero-logo.png"
+                    alt="GWERO logo"
+                    className="max-h-10 w-[126px] object-contain object-left"
+                  />
+                )}
+                <span className="border-l pl-2 text-[10px] font-bold tracking-[0.18em]">OS</span>
+              </div>
+              <nav aria-label="Mobile navigation" className="mt-5">
+                <Link
+                  to="/"
+                  onClick={() => setMenuOpen(false)}
+                  className="gwero-workspace-link mb-3"
+                  activeProps={{ className: "gwero-workspace-link mb-3 is-active" }}
+                >
+                  <Home className="size-[18px]" /> Home
+                </Link>
+                <div className="mb-3 border-t" />
+                {visibleGroups.map((group) => {
+                  const expanded = expandedWorkspace === group.label;
+                  const submenuId = `mobile-workspace-${group.label.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-")}`;
+                  return (
+                    <div key={group.label} className="mb-1">
+                      <button
+                        type="button"
+                        className={`gwero-workspace-link w-full ${activeWorkspace === group.label ? "is-active" : ""}`}
+                        aria-expanded={expanded}
+                        aria-controls={submenuId}
+                        onClick={() => setExpandedWorkspace(expanded ? null : group.label)}
+                      >
+                        <group.icon className="size-[18px]" />
+                        <span>{group.label}</span>
+                        <ChevronDown
+                          className={`ml-auto size-3.5 transition-transform ${expanded ? "rotate-180" : ""}`}
+                        />
+                      </button>
+                      {expanded ? (
+                        <div id={submenuId} className="ml-[21px] mt-1 border-l pl-4">
+                          {group.items.map((item) => (
+                            <Link
+                              key={item.to}
+                              to={item.to as never}
+                              onClick={() => setMenuOpen(false)}
+                              className="gwero-subnav-link"
+                              activeProps={{ className: "gwero-subnav-link is-active" }}
+                            >
+                              {item.label}
+                            </Link>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
               </nav>
             </SheetContent>
           </Sheet>
           <GlobalSearch />
           <div className="ml-auto flex items-center gap-2">
-            <StickyNotes />
+            <div className="hidden sm:block">
+              <StickyNotes />
+            </div>
             <button
               aria-label="Help"
               onClick={() => window.dispatchEvent(new CustomEvent("gwero:help"))}
-              className="rounded-xl p-2 text-slate-500 hover:bg-accent"
+              className="hidden rounded-xl p-2 text-slate-500 hover:bg-accent xl:block"
             >
               <CircleHelp className="size-5" />
             </button>
@@ -359,9 +439,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
                 >
                   <Bell className="size-5" />
                   {unread.length ? (
-                    <span className="absolute -right-1 -top-1 grid min-w-5 place-items-center rounded-full bg-rose-500 px-1 text-[10px] font-bold leading-5 text-white">
-                      {unread.length > 99 ? "99+" : unread.length}
-                    </span>
+                    <span className="absolute right-1 top-1 size-2 rounded-full border-2 border-background bg-[#f28369]" />
                   ) : null}
                 </button>
               </DropdownMenuTrigger>
@@ -422,8 +500,8 @@ export function AppFrame({ children }: { children: ReactNode }) {
             </DropdownMenu>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="ml-2 flex items-center gap-2 rounded-xl px-2 py-1.5 text-left hover:bg-accent">
-                  <span className="grid size-9 place-items-center rounded-full bg-accent text-xs font-bold text-accent-foreground">
+                <button className="ml-1 flex items-center gap-2 rounded-xl px-1 py-1.5 text-left hover:bg-accent md:px-2">
+                  <span className="grid size-9 place-items-center rounded-full bg-[#e8f7f9] text-xs font-bold text-[#127f96]">
                     {(auth?.user?.fullName || "Gwero User")
                       .split(/\s+/)
                       .slice(0, 2)
@@ -431,7 +509,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
                       .join("")
                       .toUpperCase()}
                   </span>
-                  <span className="hidden sm:block">
+                  <span className="hidden lg:block">
                     <span className="block text-xs font-semibold">
                       {auth?.user?.fullName || "Gwero user"}
                     </span>
@@ -439,7 +517,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
                       {auth?.user?.roleName || "System account"}
                     </span>
                   </span>
-                  <ChevronDown className="hidden size-4 text-muted-foreground sm:block" />
+                  <ChevronDown className="hidden size-4 text-muted-foreground lg:block" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-64">
@@ -463,8 +541,8 @@ export function AppFrame({ children }: { children: ReactNode }) {
             </DropdownMenu>
           </div>
         </header>
-        <main className="min-w-0 flex-1 overflow-x-clip px-4 pb-6 pt-24 md:px-6">
-          <div className="mx-auto min-w-0 max-w-[1500px]">
+        <main className="min-w-0 flex-1 overflow-x-clip px-4 pb-24 pt-[96px] min-[871px]:px-8 min-[871px]:pt-[122px]">
+          <div className="mx-auto min-w-0 max-w-[1130px]">
             {queryFailure ? (
               <div
                 role="alert"
@@ -502,24 +580,31 @@ export function AppFrame({ children }: { children: ReactNode }) {
 export function AppShell({
   title,
   description,
+  eyebrow,
   actions,
   children,
 }: {
-  title: string;
+  title: ReactNode;
   description?: string;
+  eyebrow?: string;
   actions?: ReactNode;
   children: ReactNode;
 }) {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const workspace =
+    navGroups.find((group) =>
+      group.items.some((item) => pathname === item.to || pathname.startsWith(`${item.to}/`)),
+    )?.label ?? "Your workspace";
   return (
     <>
-      {" "}
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
-          <h1 className="break-words font-display text-2xl font-bold tracking-tight text-[#21143f]">
+          <p className="gwero-eyebrow mb-3">{eyebrow || `${workspace} · Gwero OS`}</p>
+          <h1 className="break-words font-display text-[34px] font-semibold leading-[1.12] tracking-[-0.045em] text-[#17243d] md:text-[40px]">
             {title}
           </h1>
           {description ? (
-            <p className="mt-1.5 text-sm text-muted-foreground">{description}</p>
+            <p className="mt-3 text-[15px] leading-6 text-[#748597]">{description}</p>
           ) : null}
         </div>
         {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}

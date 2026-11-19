@@ -577,7 +577,7 @@ function SecureSharesPage() {
               <Section title="Fixed document versions">
                 {detail.items.map((item) => (
                   <div key={item.id} className="flex items-center gap-3 rounded-lg border p-3">
-                    <FileText className="size-4 text-violet-600" />
+                    <FileText className="size-4 text-cyan-700" />
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium">{item.title}</p>
                       <p className="text-xs text-muted-foreground">
@@ -767,7 +767,7 @@ function Summary({
   return (
     <Card>
       <CardContent className="flex items-center gap-3 p-4">
-        <span className="grid size-10 place-items-center rounded-xl bg-violet-50 text-violet-700">
+        <span className="grid size-10 place-items-center rounded-xl bg-cyan-50 text-cyan-700">
           <Icon className="size-5" />
         </span>
         <div>
