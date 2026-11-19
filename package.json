@@ -24,7 +24,8 @@
     "format": "prettier --write src scripts tests .github package.json vite.config.ts",
     "format:check": "prettier --check src scripts tests .github package.json vite.config.ts",
     "test:integration": "tsx --test tests/integration/*.test.ts",
-    "contracts:check": "node scripts/generate-input-contracts.mjs --check"
+    "contracts:check": "node scripts/generate-input-contracts.mjs --check",
+    "contracts:generate": "node scripts/generate-input-contracts.mjs --install"
   },
   "engines": {
     "node": "22.x"

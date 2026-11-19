@@ -1,1887 +1,1887 @@
 // Generated from declared server-function input types. Run npm run contracts:generate after changing an input.
 export const inputContracts = {
-  saveSystemSettings: {
-    kind: "object",
-    properties: {
-      group: { optional: false, contract: { kind: "string" } },
-      values: {
-        optional: false,
-        contract: {
-          kind: "object",
-          properties: {},
-          index: {
-            kind: "union",
-            choices: [
-              { kind: "null" },
-              { kind: "string" },
-              { kind: "number" },
-              { kind: "literal", values: [false] },
-              { kind: "literal", values: [true] },
-            ],
-          },
-        },
-      },
-    },
-  },
-  saveProviderSecrets: { kind: "object", properties: {}, index: { kind: "string" } },
-  discoverProspects: {
-    kind: "object",
-    properties: {
-      prompt: { optional: false, contract: { kind: "string" } },
-      categoryId: {
-        optional: true,
-        contract: { kind: "union", choices: [{ kind: "null" }, { kind: "string" }] },
-      },
-      limit: { optional: true, contract: { kind: "number" } },
-    },
-  },
-  login: {
-    kind: "object",
-    properties: {
-      email: { optional: false, contract: { kind: "string" } },
-      password: { optional: false, contract: { kind: "string" } },
-    },
-  },
-  bootstrapAdministrator: {
-    kind: "object",
-    properties: {
-      fullName: { optional: false, contract: { kind: "string" } },
-      email: { optional: false, contract: { kind: "string" } },
-      password: { optional: false, contract: { kind: "string" } },
-    },
-  },
-  saveSystemUser: {
-    kind: "object",
-    properties: {
-      id: { optional: true, contract: { kind: "string" } },
-      fullName: { optional: false, contract: { kind: "string" } },
-      email: { optional: false, contract: { kind: "string" } },
-      roleId: {
-        optional: false,
-        contract: { kind: "union", choices: [{ kind: "null" }, { kind: "string" }] },
-      },
-      status: { optional: false, contract: { kind: "string" } },
-      password: { optional: true, contract: { kind: "string" } },
-    },
-  },
-  deleteSystemUser: {
-    kind: "object",
-    properties: { id: { optional: false, contract: { kind: "string" } } },
-  },
-  createRole: {
-    kind: "object",
-    properties: {
-      name: { optional: false, contract: { kind: "string" } },
-      description: { optional: false, contract: { kind: "string" } },
-    },
-  },
-  setRolePermission: {
-    kind: "object",
-    properties: {
-      roleId: { optional: false, contract: { kind: "string" } },
-      permissionId: { optional: false, contract: { kind: "string" } },
-      enabled: {
-        optional: false,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: [false] },
-            { kind: "literal", values: [true] },
-          ],
-        },
-      },
-    },
-  },
-  saveMailboxCredentials: {
-    kind: "object",
-    properties: {
-      mailboxId: { optional: false, contract: { kind: "string" } },
-      smtpPassword: { optional: true, contract: { kind: "string" } },
-      imapPassword: { optional: true, contract: { kind: "string" } },
-    },
-  },
-  testMailbox: {
-    kind: "object",
-    properties: { mailboxId: { optional: false, contract: { kind: "string" } } },
-  },
-  sendCampaign: {
-    kind: "object",
-    properties: { campaignId: { optional: false, contract: { kind: "string" } } },
-  },
-  sendProspectEmail: {
-    kind: "object",
-    properties: {
-      prospectId: { optional: false, contract: { kind: "string" } },
-      contactId: { optional: false, contract: { kind: "string" } },
-      mailboxId: { optional: false, contract: { kind: "string" } },
-      subject: { optional: false, contract: { kind: "string" } },
-      body: { optional: false, contract: { kind: "string" } },
-      bodyHtml: { optional: true, contract: { kind: "string" } },
-      attachments: {
-        optional: true,
-        contract: {
-          kind: "array",
-          item: {
-            kind: "object",
-            properties: {
-              path: { optional: false, contract: { kind: "string" } },
-              name: { optional: false, contract: { kind: "string" } },
-              type: { optional: false, contract: { kind: "string" } },
-              size: { optional: false, contract: { kind: "number" } },
-            },
-          },
-        },
-      },
-    },
-  },
-  markNotificationRead: {
-    kind: "object",
-    properties: { notificationId: { optional: false, contract: { kind: "string" } } },
-  },
-  getStickyNotes: {
-    kind: "object",
-    properties: { pageKey: { optional: false, contract: { kind: "string" } } },
-  },
-  createStickyNote: {
-    kind: "object",
-    properties: {
-      pageKey: { optional: false, contract: { kind: "string" } },
-      title: { optional: true, contract: { kind: "string" } },
-      body: { optional: false, contract: { kind: "string" } },
-      color: { optional: true, contract: { kind: "string" } },
-      pinned: {
-        optional: true,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: [false] },
-            { kind: "literal", values: [true] },
-          ],
-        },
-      },
-      mentionIds: { optional: true, contract: { kind: "array", item: { kind: "string" } } },
-    },
-  },
-  createStickyNoteComment: {
-    kind: "object",
-    properties: {
-      noteId: { optional: false, contract: { kind: "string" } },
-      parentId: {
-        optional: true,
-        contract: { kind: "union", choices: [{ kind: "null" }, { kind: "string" }] },
-      },
-      body: { optional: false, contract: { kind: "string" } },
-      color: { optional: true, contract: { kind: "string" } },
-      mentionIds: { optional: true, contract: { kind: "array", item: { kind: "string" } } },
-    },
-  },
-  deleteStickyNoteComment: {
-    kind: "object",
-    properties: { commentId: { optional: false, contract: { kind: "string" } } },
-  },
-  updateStickyNote: {
-    kind: "object",
-    properties: {
-      noteId: { optional: false, contract: { kind: "string" } },
-      pageKey: { optional: false, contract: { kind: "string" } },
-      title: { optional: true, contract: { kind: "string" } },
-      body: { optional: false, contract: { kind: "string" } },
-      color: { optional: true, contract: { kind: "string" } },
-      pinned: {
-        optional: true,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: [false] },
-            { kind: "literal", values: [true] },
-          ],
-        },
-      },
-      mentionIds: { optional: true, contract: { kind: "array", item: { kind: "string" } } },
-    },
-  },
-  updateStickyNoteLayout: {
-    kind: "object",
-    properties: {
-      noteId: { optional: false, contract: { kind: "string" } },
-      positionX: { optional: true, contract: { kind: "number" } },
-      positionY: { optional: true, contract: { kind: "number" } },
-      width: { optional: true, contract: { kind: "number" } },
-      height: { optional: true, contract: { kind: "number" } },
-      zIndex: { optional: true, contract: { kind: "number" } },
-      isOpen: {
-        optional: true,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: [false] },
-            { kind: "literal", values: [true] },
-          ],
-        },
-      },
-      isPinned: {
-        optional: true,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: [false] },
-            { kind: "literal", values: [true] },
-          ],
-        },
-      },
-    },
-  },
-  deleteStickyNote: {
-    kind: "object",
-    properties: { noteId: { optional: false, contract: { kind: "string" } } },
-  },
-  searchEverywhere: {
-    kind: "object",
-    properties: { query: { optional: false, contract: { kind: "string" } } },
-  },
-  saveStamp: {
-    kind: "object",
-    properties: {
-      id: { optional: true, contract: { kind: "string" } },
-      name: { optional: false, contract: { kind: "string" } },
-      design: {
-        optional: false,
-        contract: {
-          kind: "object",
-          properties: {
-            primaryText: { optional: false, contract: { kind: "string" } },
-            secondaryText: { optional: false, contract: { kind: "string" } },
-            includeDate: {
-              optional: false,
-              contract: {
-                kind: "union",
-                choices: [
-                  { kind: "literal", values: [false] },
-                  { kind: "literal", values: [true] },
-                ],
-              },
-            },
-            datePrefix: { optional: false, contract: { kind: "string" } },
-            color: { optional: false, contract: { kind: "string" } },
-            shape: {
-              optional: false,
-              contract: {
-                kind: "union",
-                choices: [
-                  { kind: "literal", values: ["oval"] },
-                  { kind: "literal", values: ["rectangle"] },
-                  { kind: "literal", values: ["circle"] },
-                ],
-              },
-            },
-            distressed: { optional: false, contract: { kind: "number" } },
-            rotation: { optional: false, contract: { kind: "number" } },
-          },
-        },
-      },
-    },
-  },
-  saveSignature: {
-    kind: "object",
-    properties: {
-      id: { optional: false, contract: { kind: "string" } },
-      name: { optional: false, contract: { kind: "string" } },
-      imagePath: { optional: false, contract: { kind: "string" } },
-    },
-  },
-  archiveDocumentMark: {
-    kind: "object",
-    properties: { id: { optional: false, contract: { kind: "string" } } },
-  },
-  applyDocumentMarks: {
-    kind: "object",
-    properties: {
-      sourcePath: { optional: false, contract: { kind: "string" } },
-      placements: {
-        optional: false,
-        contract: {
-          kind: "array",
-          item: {
-            kind: "object",
-            properties: {
-              markId: { optional: false, contract: { kind: "string" } },
-              pageNumber: { optional: false, contract: { kind: "number" } },
-              xRatio: { optional: false, contract: { kind: "number" } },
-              yRatio: { optional: false, contract: { kind: "number" } },
-              widthRatio: { optional: false, contract: { kind: "number" } },
-              rotation: { optional: false, contract: { kind: "number" } },
-              appliedDate: { optional: false, contract: { kind: "string" } },
-              imagePng: { optional: true, contract: { kind: "string" } },
-            },
-          },
-        },
-      },
-    },
-  },
-  revealPortalCredentials: {
-    kind: "object",
-    properties: { id: { optional: false, contract: { kind: "string" } } },
-  },
-  savePortalAccount: {
-    kind: "object",
-    properties: {
-      id: { optional: true, contract: { kind: "string" } },
-      portalName: { optional: false, contract: { kind: "string" } },
-      category: { optional: false, contract: { kind: "string" } },
-      portalUrl: { optional: false, contract: { kind: "string" } },
-      websiteUrl: { optional: false, contract: { kind: "string" } },
-      notes: { optional: false, contract: { kind: "string" } },
-      credentials: {
-        optional: true,
-        contract: {
-          kind: "object",
-          properties: {
-            loginIdentifier: { optional: false, contract: { kind: "string" } },
-            accountNumber: { optional: false, contract: { kind: "string" } },
-            password: { optional: false, contract: { kind: "string" } },
-            recoveryEmail: { optional: false, contract: { kind: "string" } },
-            recoveryPhone: { optional: false, contract: { kind: "string" } },
-          },
-        },
-      },
-    },
-  },
-  archivePortalAccount: {
-    kind: "object",
-    properties: { id: { optional: false, contract: { kind: "string" } } },
-  },
-  dbAction: {
-    kind: "object",
-    properties: {
-      table: {
-        optional: false,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: ["prospects"] },
-            { kind: "literal", values: ["notifications"] },
-            { kind: "literal", values: ["notification_preferences"] },
-            { kind: "literal", values: ["page_notes"] },
-            { kind: "literal", values: ["page_note_mentions"] },
-            { kind: "literal", values: ["page_note_comments"] },
-            { kind: "literal", values: ["page_note_comment_mentions"] },
-            { kind: "literal", values: ["clients"] },
-            { kind: "literal", values: ["mailboxes"] },
-            { kind: "literal", values: ["mailbox_secrets"] },
-            { kind: "literal", values: ["campaigns"] },
-            { kind: "literal", values: ["campaign_recipients"] },
-            { kind: "literal", values: ["campaign_steps"] },
-            { kind: "literal", values: ["campaign_events"] },
-            { kind: "literal", values: ["email_suppressions"] },
-            { kind: "literal", values: ["deals"] },
-            { kind: "literal", values: ["agreements"] },
-            { kind: "literal", values: ["agreement_items"] },
-            { kind: "literal", values: ["activities"] },
-            { kind: "literal", values: ["replies"] },
-            { kind: "literal", values: ["quotations"] },
-            { kind: "literal", values: ["quotation_items"] },
-            { kind: "literal", values: ["projects"] },
-            { kind: "literal", values: ["bids"] },
-            { kind: "literal", values: ["cost_sheets"] },
-            { kind: "literal", values: ["cost_sheet_items"] },
-            { kind: "literal", values: ["cost_sheet_columns"] },
-            { kind: "literal", values: ["cost_sheet_templates"] },
-            { kind: "literal", values: ["jobs"] },
-            { kind: "literal", values: ["tasks"] },
-            { kind: "literal", values: ["suppliers"] },
-            { kind: "literal", values: ["supplier_quotes"] },
-            { kind: "literal", values: ["cost_sheet_supplier_quotes"] },
-            { kind: "literal", values: ["purchase_orders"] },
-            { kind: "literal", values: ["purchase_order_items"] },
-            { kind: "literal", values: ["prequalifications"] },
-            { kind: "literal", values: ["requests"] },
-            { kind: "literal", values: ["marketing_activities"] },
-            { kind: "literal", values: ["documents"] },
-            { kind: "literal", values: ["document_categories"] },
-            { kind: "literal", values: ["document_versions"] },
-            { kind: "literal", values: ["document_access"] },
-            { kind: "literal", values: ["document_marks"] },
-            { kind: "literal", values: ["document_mark_applications"] },
-            { kind: "literal", values: ["portal_accounts"] },
-            { kind: "literal", values: ["vacancies"] },
-            { kind: "literal", values: ["applicants"] },
-            { kind: "literal", values: ["employees"] },
-            { kind: "literal", values: ["leave_requests"] },
-            { kind: "literal", values: ["payroll_runs"] },
-            { kind: "literal", values: ["payroll_items"] },
-            { kind: "literal", values: ["invoices"] },
-            { kind: "literal", values: ["expenses"] },
-            { kind: "literal", values: ["payments"] },
-            { kind: "literal", values: ["system_settings"] },
-            { kind: "literal", values: ["app_secrets"] },
-            { kind: "literal", values: ["email_templates"] },
-            { kind: "literal", values: ["roles"] },
-            { kind: "literal", values: ["permissions"] },
-            { kind: "literal", values: ["role_permissions"] },
-            { kind: "literal", values: ["system_users"] },
-            { kind: "literal", values: ["auth_sessions"] },
-            { kind: "literal", values: ["prospect_contacts"] },
-            { kind: "literal", values: ["client_contacts"] },
-            { kind: "literal", values: ["prospect_categories"] },
-            { kind: "literal", values: ["prospect_interactions"] },
-            { kind: "literal", values: ["ai_prospect_searches"] },
-          ],
-        },
-      },
-      action: {
-        optional: false,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: ["select"] },
-            { kind: "literal", values: ["insert"] },
-            { kind: "literal", values: ["upsert"] },
-            { kind: "literal", values: ["update"] },
-            { kind: "literal", values: ["delete"] },
-          ],
-        },
-      },
-      columns: { optional: true, contract: { kind: "string" } },
-      values: {
-        optional: true,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "object", properties: {}, index: { kind: "json" } },
-            { kind: "array", item: { kind: "object", properties: {}, index: { kind: "json" } } },
-          ],
-        },
-      },
-      filters: {
-        optional: false,
-        contract: {
-          kind: "array",
-          item: {
-            kind: "object",
-            properties: {
-              column: { optional: false, contract: { kind: "string" } },
-              op: {
-                optional: false,
-                contract: {
-                  kind: "union",
-                  choices: [
-                    { kind: "literal", values: ["eq"] },
-                    { kind: "literal", values: ["in"] },
-                  ],
-                },
-              },
-              value: { optional: false, contract: { kind: "json" } },
-            },
-          },
-        },
-      },
-      orderBy: { optional: true, contract: { kind: "string" } },
-      ascending: {
-        optional: true,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: [false] },
-            { kind: "literal", values: [true] },
-          ],
-        },
-      },
-      limit: { optional: true, contract: { kind: "number" } },
-      offset: { optional: true, contract: { kind: "number" } },
-      search: {
-        optional: true,
-        contract: {
-          kind: "object",
-          properties: {
-            term: { optional: false, contract: { kind: "string" } },
-            columns: { optional: false, contract: { kind: "array", item: { kind: "string" } } },
-          },
-        },
-      },
-      count: {
-        optional: true,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: [false] },
-            { kind: "literal", values: [true] },
-          ],
-        },
-      },
-      conflict: { optional: true, contract: { kind: "string" } },
-    },
-  },
-  listOpportunities: {
-    kind: "object",
-    properties: {
-      kind: {
-        optional: false,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: ["rfp"] },
-            { kind: "literal", values: ["rfq"] },
-            { kind: "literal", values: ["bid"] },
-            { kind: "literal", values: ["eoi"] },
-          ],
-        },
-      },
-      page: { optional: true, contract: { kind: "number" } },
-      pageSize: { optional: true, contract: { kind: "number" } },
-      search: { optional: true, contract: { kind: "string" } },
-      archived: {
-        optional: true,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: [false] },
-            { kind: "literal", values: [true] },
-          ],
-        },
-      },
-    },
-  },
-  archiveOpportunity: {
-    kind: "object",
-    properties: {
-      kind: {
-        optional: false,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: ["rfp"] },
-            { kind: "literal", values: ["rfq"] },
-            { kind: "literal", values: ["bid"] },
-            { kind: "literal", values: ["eoi"] },
-          ],
-        },
-      },
-      id: { optional: false, contract: { kind: "string" } },
-      archived: {
-        optional: false,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: [false] },
-            { kind: "literal", values: [true] },
-          ],
-        },
-      },
-    },
-  },
-  deleteOpportunity: {
-    kind: "object",
-    properties: {
-      kind: {
-        optional: false,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: ["rfp"] },
-            { kind: "literal", values: ["rfq"] },
-            { kind: "literal", values: ["bid"] },
-            { kind: "literal", values: ["eoi"] },
-          ],
-        },
-      },
-      id: { optional: false, contract: { kind: "string" } },
-    },
-  },
-  createOpportunity: { kind: "json" },
-  getOpportunityWorkspace: {
-    kind: "object",
-    properties: {
-      kind: {
-        optional: false,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: ["rfp"] },
-            { kind: "literal", values: ["rfq"] },
-            { kind: "literal", values: ["bid"] },
-            { kind: "literal", values: ["eoi"] },
-          ],
-        },
-      },
-      id: { optional: false, contract: { kind: "string" } },
-    },
-  },
-  updateOpportunity: { kind: "json" },
-  saveChecklistItem: {
-    kind: "object",
-    properties: {
-      id: { optional: true, contract: { kind: "string" } },
-      kind: {
-        optional: false,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: ["rfp"] },
-            { kind: "literal", values: ["rfq"] },
-            { kind: "literal", values: ["bid"] },
-            { kind: "literal", values: ["eoi"] },
-          ],
-        },
-      },
-      opportunityId: { optional: false, contract: { kind: "string" } },
-      title: { optional: false, contract: { kind: "string" } },
-      notes: { optional: true, contract: { kind: "string" } },
-      assigneeId: { optional: true, contract: { kind: "string" } },
-      dueAt: { optional: true, contract: { kind: "string" } },
-      documentRequired: {
-        optional: true,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: [false] },
-            { kind: "literal", values: [true] },
-          ],
-        },
-      },
-    },
-  },
-  setChecklistStatus: {
-    kind: "object",
-    properties: {
-      id: { optional: false, contract: { kind: "string" } },
-      complete: {
-        optional: false,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: [false] },
-            { kind: "literal", values: [true] },
-          ],
-        },
-      },
-    },
-  },
-  deleteChecklistItem: {
-    kind: "object",
-    properties: { id: { optional: false, contract: { kind: "string" } } },
-  },
-  addOpportunityDocument: {
-    kind: "object",
-    properties: {
-      kind: {
-        optional: false,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: ["rfp"] },
-            { kind: "literal", values: ["rfq"] },
-            { kind: "literal", values: ["bid"] },
-            { kind: "literal", values: ["eoi"] },
-          ],
-        },
-      },
-      opportunityId: { optional: false, contract: { kind: "string" } },
-      checklistItemId: { optional: true, contract: { kind: "string" } },
-      documentId: { optional: true, contract: { kind: "string" } },
-      attachment: {
-        optional: true,
-        contract: {
-          kind: "object",
-          properties: {
-            path: { optional: false, contract: { kind: "string" } },
-            name: { optional: false, contract: { kind: "string" } },
-            type: { optional: false, contract: { kind: "string" } },
-            size: { optional: false, contract: { kind: "number" } },
-          },
-        },
-      },
-      displayName: { optional: false, contract: { kind: "string" } },
-      role: { optional: true, contract: { kind: "string" } },
-    },
-  },
-  updateOpportunityDocument: {
-    kind: "object",
-    properties: {
-      id: { optional: false, contract: { kind: "string" } },
-      outgoingName: { optional: false, contract: { kind: "string" } },
-      include: {
-        optional: false,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: [false] },
-            { kind: "literal", values: [true] },
-          ],
-        },
-      },
-    },
-  },
-  deleteOpportunityDocument: {
-    kind: "object",
-    properties: { id: { optional: false, contract: { kind: "string" } } },
-  },
-  addOpportunityComment: {
-    kind: "object",
-    properties: {
-      kind: {
-        optional: false,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: ["rfp"] },
-            { kind: "literal", values: ["rfq"] },
-            { kind: "literal", values: ["bid"] },
-            { kind: "literal", values: ["eoi"] },
-          ],
-        },
-      },
-      opportunityId: { optional: false, contract: { kind: "string" } },
-      body: { optional: false, contract: { kind: "string" } },
-      mentionIds: { optional: true, contract: { kind: "array", item: { kind: "string" } } },
-    },
-  },
-  linkCostSheet: {
-    kind: "object",
-    properties: {
-      kind: {
-        optional: false,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: ["rfp"] },
-            { kind: "literal", values: ["rfq"] },
-            { kind: "literal", values: ["bid"] },
-            { kind: "literal", values: ["eoi"] },
-          ],
-        },
-      },
-      opportunityId: { optional: false, contract: { kind: "string" } },
-      costSheetId: { optional: true, contract: { kind: "string" } },
-      create: {
-        optional: true,
-        contract: {
-          kind: "object",
-          properties: {
-            name: { optional: false, contract: { kind: "string" } },
-            clientId: { optional: true, contract: { kind: "string" } },
-            currency: { optional: false, contract: { kind: "string" } },
-            notes: { optional: true, contract: { kind: "string" } },
-          },
-        },
-      },
-    },
-  },
-  submitOpportunity: {
-    kind: "object",
-    properties: {
-      kind: {
-        optional: false,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: ["rfp"] },
-            { kind: "literal", values: ["rfq"] },
-            { kind: "literal", values: ["bid"] },
-            { kind: "literal", values: ["eoi"] },
-          ],
-        },
-      },
-      opportunityId: { optional: false, contract: { kind: "string" } },
-      channel: {
-        optional: false,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: ["email"] },
-            { kind: "literal", values: ["hand_delivery"] },
-            { kind: "literal", values: ["portal"] },
-          ],
-        },
-      },
-      mailboxId: { optional: true, contract: { kind: "string" } },
-      recipientEmail: { optional: true, contract: { kind: "string" } },
-      cc: { optional: true, contract: { kind: "string" } },
-      subject: { optional: true, contract: { kind: "string" } },
-      bodyHtml: { optional: true, contract: { kind: "string" } },
-      bodyText: { optional: true, contract: { kind: "string" } },
-      fileMode: {
-        optional: true,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: ["separate"] },
-            { kind: "literal", values: ["merged"] },
-          ],
-        },
-      },
-    },
-  },
-  saveCurrency: {
-    kind: "object",
-    properties: {
-      id: { optional: true, contract: { kind: "string" } },
-      code: { optional: false, contract: { kind: "string" } },
-      name: { optional: false, contract: { kind: "string" } },
-      symbol: { optional: false, contract: { kind: "string" } },
-      isDefault: {
-        optional: true,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: [false] },
-            { kind: "literal", values: [true] },
-          ],
-        },
-      },
-      isActive: {
-        optional: true,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: [false] },
-            { kind: "literal", values: [true] },
-          ],
-        },
-      },
-    },
-  },
-  deleteCurrency: {
-    kind: "object",
-    properties: { id: { optional: false, contract: { kind: "string" } } },
-  },
-  clientDirectory: {
-    kind: "object",
-    properties: {
-      search: { optional: true, contract: { kind: "string" } },
-      category: { optional: true, contract: { kind: "string" } },
-      sort: { optional: true, contract: { kind: "string" } },
-      offset: { optional: true, contract: { kind: "number" } },
-    },
-  },
-  prospectDirectory: {
-    kind: "object",
-    properties: {
-      search: { optional: true, contract: { kind: "string" } },
-      category: { optional: true, contract: { kind: "string" } },
-      sort: { optional: true, contract: { kind: "string" } },
-      offset: { optional: true, contract: { kind: "number" } },
-    },
-  },
-  getCostSheetWorkspace: {
-    kind: "object",
-    properties: { costSheetId: { optional: false, contract: { kind: "string" } } },
-  },
-  setCostSheetSourceQuote: {
-    kind: "object",
-    properties: {
-      costSheetId: { optional: false, contract: { kind: "string" } },
-      quoteId: { optional: false, contract: { kind: "string" } },
-      linked: {
-        optional: false,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: [false] },
-            { kind: "literal", values: [true] },
-          ],
-        },
-      },
-    },
-  },
-  saveCostSheetItem: {
-    kind: "object",
-    properties: {
-      costSheetId: { optional: false, contract: { kind: "string" } },
-      itemId: { optional: true, contract: { kind: "string" } },
-      category: { optional: false, contract: { kind: "string" } },
-      description: { optional: false, contract: { kind: "string" } },
-      quantity: { optional: false, contract: { kind: "number" } },
-      unitCost: { optional: false, contract: { kind: "number" } },
-      markupPercent: { optional: false, contract: { kind: "number" } },
-      customValues: {
-        optional: false,
-        contract: {
-          kind: "object",
-          properties: {},
-          index: { kind: "union", choices: [{ kind: "string" }, { kind: "number" }] },
-        },
-      },
-      attachments: {
-        optional: false,
-        contract: {
-          kind: "array",
-          item: {
-            kind: "object",
-            properties: {
-              path: { optional: false, contract: { kind: "string" } },
-              name: { optional: false, contract: { kind: "string" } },
-              type: { optional: false, contract: { kind: "string" } },
-              size: { optional: false, contract: { kind: "number" } },
-            },
-          },
-        },
-      },
-    },
-  },
-  deleteCostSheetItem: {
-    kind: "object",
-    properties: {
-      costSheetId: { optional: false, contract: { kind: "string" } },
-      itemId: { optional: false, contract: { kind: "string" } },
-    },
-  },
-  saveCostSheetColumn: {
-    kind: "object",
-    properties: {
-      costSheetId: { optional: false, contract: { kind: "string" } },
-      columnId: { optional: true, contract: { kind: "string" } },
-      name: { optional: false, contract: { kind: "string" } },
-      key: { optional: false, contract: { kind: "string" } },
-      dataType: {
-        optional: false,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: ["number"] },
-            { kind: "literal", values: ["text"] },
-            { kind: "literal", values: ["formula"] },
-          ],
-        },
-      },
-      defaultValue: { optional: false, contract: { kind: "string" } },
-      formulaExpression: { optional: false, contract: { kind: "string" } },
-    },
-  },
-  saveCostSheetColumnRules: {
-    kind: "object",
-    properties: {
-      costSheetId: { optional: false, contract: { kind: "string" } },
-      rules: { optional: false, contract: { kind: "object", properties: {} } },
-    },
-  },
-  deleteCostSheetColumn: {
-    kind: "object",
-    properties: {
-      costSheetId: { optional: false, contract: { kind: "string" } },
-      columnId: { optional: false, contract: { kind: "string" } },
-    },
-  },
-  updateCostSheet: {
-    kind: "object",
-    properties: {
-      costSheetId: { optional: false, contract: { kind: "string" } },
-      name: { optional: false, contract: { kind: "string" } },
-      status: { optional: false, contract: { kind: "string" } },
-      notes: { optional: false, contract: { kind: "string" } },
-    },
-  },
-  deleteCostSheet: {
-    kind: "object",
-    properties: { costSheetId: { optional: false, contract: { kind: "string" } } },
-  },
-  createCostSheet: {
-    kind: "object",
-    properties: {
-      name: { optional: false, contract: { kind: "string" } },
-      clientId: { optional: true, contract: { kind: "string" } },
-      currency: { optional: false, contract: { kind: "string" } },
-      notes: { optional: true, contract: { kind: "string" } },
-      templateId: { optional: true, contract: { kind: "string" } },
-    },
-  },
-  saveCostSheetAsTemplate: {
-    kind: "object",
-    properties: {
-      costSheetId: { optional: false, contract: { kind: "string" } },
-      name: { optional: false, contract: { kind: "string" } },
-      description: { optional: true, contract: { kind: "string" } },
-    },
-  },
-  applyCostSheetTemplate: {
-    kind: "object",
-    properties: {
-      costSheetId: { optional: false, contract: { kind: "string" } },
-      templateId: { optional: false, contract: { kind: "string" } },
-    },
-  },
-  deleteCostSheetTemplate: {
-    kind: "object",
-    properties: { templateId: { optional: false, contract: { kind: "string" } } },
-  },
-  createDocumentCategory: {
-    kind: "object",
-    properties: {
-      name: { optional: false, contract: { kind: "string" } },
-      description: { optional: true, contract: { kind: "string" } },
-      color: { optional: true, contract: { kind: "string" } },
-    },
-  },
-  createManagedDocument: {
-    kind: "object",
-    properties: {
-      id: { optional: false, contract: { kind: "string" } },
-      title: { optional: false, contract: { kind: "string" } },
-      categoryId: { optional: true, contract: { kind: "string" } },
-      ownerId: { optional: true, contract: { kind: "string" } },
-      entityType: { optional: true, contract: { kind: "string" } },
-      entityId: { optional: true, contract: { kind: "string" } },
-      issueDate: { optional: true, contract: { kind: "string" } },
-      expiryDate: { optional: true, contract: { kind: "string" } },
-      notes: { optional: true, contract: { kind: "string" } },
-      attachment: {
-        optional: false,
-        contract: {
-          kind: "object",
-          properties: {
-            path: { optional: false, contract: { kind: "string" } },
-            name: { optional: false, contract: { kind: "string" } },
-            type: { optional: false, contract: { kind: "string" } },
-            size: { optional: false, contract: { kind: "number" } },
-          },
-        },
-      },
-      versionNotes: { optional: true, contract: { kind: "string" } },
-    },
-  },
-  addManagedDocumentVersion: {
-    kind: "object",
-    properties: {
-      documentId: { optional: false, contract: { kind: "string" } },
-      attachment: {
-        optional: false,
-        contract: {
-          kind: "object",
-          properties: {
-            path: { optional: false, contract: { kind: "string" } },
-            name: { optional: false, contract: { kind: "string" } },
-            type: { optional: false, contract: { kind: "string" } },
-            size: { optional: false, contract: { kind: "number" } },
-          },
-        },
-      },
-      notes: { optional: true, contract: { kind: "string" } },
-    },
-  },
-  updateManagedDocument: {
-    kind: "object",
-    properties: {
-      id: { optional: false, contract: { kind: "string" } },
-      title: { optional: false, contract: { kind: "string" } },
-      categoryId: { optional: true, contract: { kind: "string" } },
-      ownerId: { optional: true, contract: { kind: "string" } },
-      status: { optional: true, contract: { kind: "string" } },
-      entityType: { optional: true, contract: { kind: "string" } },
-      issueDate: { optional: true, contract: { kind: "string" } },
-      expiryDate: { optional: true, contract: { kind: "string" } },
-      notes: { optional: true, contract: { kind: "string" } },
-    },
-  },
-  setManagedDocumentAccess: {
-    kind: "object",
-    properties: {
-      documentId: { optional: false, contract: { kind: "string" } },
-      grants: {
-        optional: false,
-        contract: {
-          kind: "array",
-          item: {
-            kind: "object",
-            properties: {
-              userId: { optional: false, contract: { kind: "string" } },
-              accessLevel: {
-                optional: false,
-                contract: {
-                  kind: "union",
-                  choices: [
-                    { kind: "literal", values: ["view"] },
-                    { kind: "literal", values: ["edit"] },
-                    { kind: "literal", values: ["manage"] },
-                  ],
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-  },
-  getFinanceWorkspace: {
-    kind: "union",
-    choices: [
-      { kind: "undefined" },
-      {
-        kind: "object",
-        properties: {
-          sourceType: { optional: true, contract: { kind: "string" } },
-          sourceId: { optional: true, contract: { kind: "string" } },
-        },
-      },
-    ],
-  },
-  saveFinanceTransaction: {
-    kind: "object",
-    properties: {
-      id: { optional: true, contract: { kind: "string" } },
-      type: {
-        optional: false,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: ["expense"] },
-            { kind: "literal", values: ["revenue"] },
-          ],
-        },
-      },
-      date: { optional: false, contract: { kind: "string" } },
-      dueDate: { optional: true, contract: { kind: "string" } },
-      description: { optional: false, contract: { kind: "string" } },
-      counterparty: { optional: true, contract: { kind: "string" } },
-      reference: { optional: true, contract: { kind: "string" } },
-      currency: { optional: false, contract: { kind: "string" } },
-      taxTreatment: {
-        optional: false,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: ["none"] },
-            { kind: "literal", values: ["standard"] },
-            { kind: "literal", values: ["zero_rated"] },
-            { kind: "literal", values: ["exempt"] },
-          ],
-        },
-      },
-      taxRecoverable: {
-        optional: true,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: [false] },
-            { kind: "literal", values: [true] },
-          ],
-        },
-      },
-      sourceType: { optional: true, contract: { kind: "string" } },
-      sourceId: { optional: true, contract: { kind: "string" } },
-      clientId: { optional: true, contract: { kind: "string" } },
-      projectId: { optional: true, contract: { kind: "string" } },
-      notes: { optional: true, contract: { kind: "string" } },
-      lines: {
-        optional: false,
-        contract: {
-          kind: "array",
-          item: {
-            kind: "object",
-            properties: {
-              accountId: { optional: false, contract: { kind: "string" } },
-              description: { optional: false, contract: { kind: "string" } },
-              quantity: { optional: false, contract: { kind: "number" } },
-              unitAmount: { optional: false, contract: { kind: "number" } },
-              taxRate: { optional: true, contract: { kind: "number" } },
-            },
-          },
-        },
-      },
-      attachments: {
-        optional: true,
-        contract: {
-          kind: "array",
-          item: {
-            kind: "object",
-            properties: {
-              path: { optional: false, contract: { kind: "string" } },
-              name: { optional: false, contract: { kind: "string" } },
-              type: { optional: false, contract: { kind: "string" } },
-              size: { optional: false, contract: { kind: "number" } },
-            },
-          },
-        },
-      },
-    },
-  },
-  postFinanceTransaction: {
-    kind: "object",
-    properties: { id: { optional: false, contract: { kind: "string" } } },
-  },
-  recordFinancePayment: {
-    kind: "object",
-    properties: {
-      id: { optional: false, contract: { kind: "string" } },
-      date: { optional: false, contract: { kind: "string" } },
-      amount: { optional: false, contract: { kind: "number" } },
-      method: { optional: true, contract: { kind: "string" } },
-      reference: { optional: true, contract: { kind: "string" } },
-      notes: { optional: true, contract: { kind: "string" } },
-    },
-  },
-  deleteFinanceDraft: {
-    kind: "object",
-    properties: { id: { optional: false, contract: { kind: "string" } } },
-  },
-  voidFinanceTransaction: {
-    kind: "object",
-    properties: {
-      id: { optional: false, contract: { kind: "string" } },
-      reason: { optional: false, contract: { kind: "string" } },
-    },
-  },
-  createProspectCompany: {
-    kind: "object",
-    properties: {
-      company: { optional: false, contract: { kind: "string" } },
-      email: { optional: true, contract: { kind: "string" } },
-      phone: { optional: true, contract: { kind: "string" } },
-      website: { optional: true, contract: { kind: "string" } },
-      linkedinUrl: { optional: true, contract: { kind: "string" } },
-      categoryId: {
-        optional: true,
-        contract: { kind: "union", choices: [{ kind: "null" }, { kind: "string" }] },
-      },
-      industry: { optional: true, contract: { kind: "string" } },
-      address: { optional: true, contract: { kind: "string" } },
-      city: { optional: true, contract: { kind: "string" } },
-      country: { optional: true, contract: { kind: "string" } },
-      registrationNumber: { optional: true, contract: { kind: "string" } },
-      employeeCount: {
-        optional: true,
-        contract: { kind: "union", choices: [{ kind: "null" }, { kind: "number" }] },
-      },
-      notes: { optional: true, contract: { kind: "string" } },
-      logoPath: { optional: true, contract: { kind: "string" } },
-    },
-  },
-  deleteProspectContact: {
-    kind: "object",
-    properties: {
-      prospectId: { optional: false, contract: { kind: "string" } },
-      contactId: { optional: false, contract: { kind: "string" } },
-    },
-  },
-  importProspectContacts: {
-    kind: "object",
-    properties: {
-      rows: {
-        optional: false,
-        contract: {
-          kind: "array",
-          item: {
-            kind: "object",
-            properties: {
-              company: { optional: false, contract: { kind: "string" } },
-              firstName: { optional: true, contract: { kind: "string" } },
-              lastName: { optional: true, contract: { kind: "string" } },
-              email: { optional: true, contract: { kind: "string" } },
-              phone: { optional: true, contract: { kind: "string" } },
-              gender: { optional: true, contract: { kind: "string" } },
-              jobTitle: { optional: true, contract: { kind: "string" } },
-              website: { optional: true, contract: { kind: "string" } },
-              linkedinUrl: { optional: true, contract: { kind: "string" } },
-              categoryId: {
-                optional: true,
-                contract: { kind: "union", choices: [{ kind: "null" }, { kind: "string" }] },
-              },
-            },
-          },
-        },
-      },
-      sourceFile: { optional: true, contract: { kind: "string" } },
-    },
-  },
-  convertProspectToClient: {
-    kind: "object",
-    properties: { prospectId: { optional: false, contract: { kind: "string" } } },
-  },
-  createSecureShare: {
-    kind: "object",
-    properties: {
-      title: { optional: false, contract: { kind: "string" } },
-      description: { optional: true, contract: { kind: "string" } },
-      slug: { optional: true, contract: { kind: "string" } },
-      expiresAt: { optional: true, contract: { kind: "string" } },
-      mailboxId: { optional: false, contract: { kind: "string" } },
-      emailSubject: { optional: false, contract: { kind: "string" } },
-      emailMessage: { optional: true, contract: { kind: "string" } },
-      documentIds: { optional: false, contract: { kind: "array", item: { kind: "string" } } },
-      recipients: {
-        optional: false,
-        contract: {
-          kind: "array",
-          item: {
-            kind: "object",
-            properties: {
-              name: { optional: false, contract: { kind: "string" } },
-              email: { optional: false, contract: { kind: "string" } },
-              message: { optional: true, contract: { kind: "string" } },
-              allowDownload: {
-                optional: false,
-                contract: {
-                  kind: "union",
-                  choices: [
-                    { kind: "literal", values: [false] },
-                    { kind: "literal", values: [true] },
-                  ],
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-  },
-  resendSecureShareInvitation: {
-    kind: "object",
-    properties: { recipientId: { optional: false, contract: { kind: "string" } } },
-  },
-  addSecureShareRecipient: {
-    kind: "object",
-    properties: {
-      shareId: { optional: false, contract: { kind: "string" } },
-      recipient: {
-        optional: false,
-        contract: {
-          kind: "object",
-          properties: {
-            name: { optional: false, contract: { kind: "string" } },
-            email: { optional: false, contract: { kind: "string" } },
-            message: { optional: true, contract: { kind: "string" } },
-            allowDownload: {
-              optional: false,
-              contract: {
-                kind: "union",
-                choices: [
-                  { kind: "literal", values: [false] },
-                  { kind: "literal", values: [true] },
-                ],
-              },
-            },
-          },
-        },
-      },
-    },
-  },
-  updateSecureShareStatus: {
-    kind: "object",
-    properties: {
-      id: { optional: false, contract: { kind: "string" } },
-      status: {
-        optional: false,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: ["active"] },
-            { kind: "literal", values: ["revoked"] },
-          ],
-        },
-      },
-    },
-  },
-  updateSecureShareRecipient: {
-    kind: "object",
-    properties: {
-      id: { optional: false, contract: { kind: "string" } },
-      allowDownload: {
-        optional: true,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: [false] },
-            { kind: "literal", values: [true] },
-          ],
-        },
-      },
-      revoked: {
-        optional: true,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: [false] },
-            { kind: "literal", values: [true] },
-          ],
-        },
-      },
-    },
-  },
-  openSecureShare: {
-    kind: "object",
-    properties: {
-      slug: { optional: false, contract: { kind: "string" } },
-      token: { optional: true, contract: { kind: "string" } },
-    },
-  },
-  requestSecureShareOtp: {
-    kind: "object",
-    properties: { slug: { optional: false, contract: { kind: "string" } } },
-  },
-  verifySecureShareOtp: {
-    kind: "object",
-    properties: {
-      slug: { optional: false, contract: { kind: "string" } },
-      code: { optional: false, contract: { kind: "string" } },
-    },
-  },
-  saveMailbox: {
-    kind: "object",
-    properties: {
-      id: { optional: true, contract: { kind: "string" } },
-      name: { optional: false, contract: { kind: "string" } },
-      email: { optional: false, contract: { kind: "string" } },
-      fromName: { optional: true, contract: { kind: "string" } },
-      provider: { optional: false, contract: { kind: "string" } },
-      smtpHost: { optional: true, contract: { kind: "string" } },
-      smtpPort: { optional: true, contract: { kind: "number" } },
-      username: { optional: true, contract: { kind: "string" } },
-      imapHost: { optional: true, contract: { kind: "string" } },
-      imapPort: { optional: true, contract: { kind: "number" } },
-    },
-  },
-  updateMailboxProfile: {
-    kind: "object",
-    properties: {
-      id: { optional: false, contract: { kind: "string" } },
-      name: { optional: false, contract: { kind: "string" } },
-      fromName: { optional: true, contract: { kind: "string" } },
-    },
-  },
-  setMailboxUserAccess: {
-    kind: "object",
-    properties: {
-      mailboxId: { optional: false, contract: { kind: "string" } },
-      userId: { optional: false, contract: { kind: "string" } },
-      canSend: {
-        optional: false,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: [false] },
-            { kind: "literal", values: [true] },
-          ],
-        },
-      },
-      canManage: {
-        optional: true,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: [false] },
-            { kind: "literal", values: [true] },
-          ],
-        },
-      },
-    },
-  },
-  deleteMailbox: {
-    kind: "object",
-    properties: { id: { optional: false, contract: { kind: "string" } } },
-  },
-  setDefaultMailbox: {
-    kind: "object",
-    properties: { mailboxId: { optional: false, contract: { kind: "string" } } },
-  },
-  saveEmailSignature: {
-    kind: "object",
-    properties: {
-      id: { optional: true, contract: { kind: "string" } },
-      mailboxId: { optional: false, contract: { kind: "string" } },
-      name: { optional: false, contract: { kind: "string" } },
-      type: { optional: false, contract: { kind: "string" } },
-      html: { optional: true, contract: { kind: "string" } },
-      text: { optional: true, contract: { kind: "string" } },
-      imageUrl: { optional: true, contract: { kind: "string" } },
-    },
-  },
   activateEmailSignature: {
     kind: "object",
     properties: {
-      mailboxId: { optional: false, contract: { kind: "string" } },
+      mailboxId: { contract: { kind: "string" }, optional: false },
       signatureId: {
+        contract: { choices: [{ kind: "null" }, { kind: "string" }], kind: "union" },
         optional: true,
-        contract: { kind: "union", choices: [{ kind: "null" }, { kind: "string" }] },
-      },
-    },
-  },
-  deleteEmailSignature: {
-    kind: "object",
-    properties: { id: { optional: false, contract: { kind: "string" } } },
-  },
-  saveVendor: {
-    kind: "object",
-    properties: {
-      id: { optional: true, contract: { kind: "string" } },
-      name: { optional: false, contract: { kind: "string" } },
-      contactName: { optional: true, contract: { kind: "string" } },
-      email: { optional: true, contract: { kind: "string" } },
-      phone: { optional: true, contract: { kind: "string" } },
-      category: { optional: true, contract: { kind: "string" } },
-      notes: { optional: true, contract: { kind: "string" } },
-    },
-  },
-  deleteVendor: {
-    kind: "object",
-    properties: { id: { optional: false, contract: { kind: "string" } } },
-  },
-  saveVendorQuote: {
-    kind: "object",
-    properties: {
-      id: { optional: true, contract: { kind: "string" } },
-      supplierId: { optional: true, contract: { kind: "string" } },
-      sourceName: { optional: false, contract: { kind: "string" } },
-      quoteReference: { optional: true, contract: { kind: "string" } },
-      quoteDate: { optional: true, contract: { kind: "string" } },
-      validUntil: { optional: true, contract: { kind: "string" } },
-      currency: { optional: false, contract: { kind: "string" } },
-      amount: { optional: false, contract: { kind: "number" } },
-      notes: { optional: true, contract: { kind: "string" } },
-      attachment: {
-        optional: true,
-        contract: {
-          kind: "object",
-          properties: {
-            path: { optional: false, contract: { kind: "string" } },
-            name: { optional: false, contract: { kind: "string" } },
-            type: { optional: false, contract: { kind: "string" } },
-            size: { optional: false, contract: { kind: "number" } },
-          },
-        },
-      },
-    },
-  },
-  deleteVendorQuote: {
-    kind: "object",
-    properties: { id: { optional: false, contract: { kind: "string" } } },
-  },
-  mergeOpportunityDocuments: {
-    kind: "object",
-    properties: {
-      kind: {
-        optional: false,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: ["rfp"] },
-            { kind: "literal", values: ["rfq"] },
-            { kind: "literal", values: ["bid"] },
-            { kind: "literal", values: ["eoi"] },
-          ],
-        },
-      },
-      opportunityId: { optional: false, contract: { kind: "string" } },
-      outputName: { optional: false, contract: { kind: "string" } },
-      sources: {
-        optional: false,
-        contract: {
-          kind: "array",
-          item: {
-            kind: "object",
-            properties: {
-              kind: {
-                optional: false,
-                contract: {
-                  kind: "union",
-                  choices: [
-                    { kind: "literal", values: ["tender"] },
-                    { kind: "literal", values: ["library"] },
-                  ],
-                },
-              },
-              id: { optional: false, contract: { kind: "string" } },
-            },
-          },
-        },
-      },
-      pages: { optional: true, contract: { kind: "array", item: { kind: "json" } } },
-    },
-  },
-  getCampaignWorkspace: {
-    kind: "object",
-    properties: { campaignId: { optional: false, contract: { kind: "string" } } },
-  },
-  createCampaign: {
-    kind: "object",
-    properties: {
-      name: { optional: false, contract: { kind: "string" } },
-      campaignType: { optional: false, contract: { kind: "string" } },
-      objective: { optional: true, contract: { kind: "string" } },
-      approvalRequired: {
-        optional: true,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: [false] },
-            { kind: "literal", values: [true] },
-          ],
-        },
-      },
-    },
-  },
-  deleteCampaign: {
-    kind: "object",
-    properties: { campaignId: { optional: false, contract: { kind: "string" } } },
-  },
-  updateCampaign: {
-    kind: "object",
-    properties: {
-      campaignId: { optional: false, contract: { kind: "string" } },
-      name: { optional: false, contract: { kind: "string" } },
-      campaignType: { optional: false, contract: { kind: "string" } },
-      objective: { optional: false, contract: { kind: "string" } },
-      mailboxId: { optional: false, contract: { kind: "string" } },
-      ownerId: { optional: false, contract: { kind: "string" } },
-      dailyLimit: { optional: false, contract: { kind: "number" } },
-      timezone: { optional: false, contract: { kind: "string" } },
-      approvalRequired: {
-        optional: false,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: [false] },
-            { kind: "literal", values: [true] },
-          ],
-        },
-      },
-      stopOnReply: {
-        optional: false,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: [false] },
-            { kind: "literal", values: [true] },
-          ],
-        },
-      },
-      stopOnBounce: {
-        optional: false,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: [false] },
-            { kind: "literal", values: [true] },
-          ],
-        },
-      },
-      trackOpens: {
-        optional: false,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: [false] },
-            { kind: "literal", values: [true] },
-          ],
-        },
-      },
-      trackClicks: {
-        optional: false,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: [false] },
-            { kind: "literal", values: [true] },
-          ],
-        },
-      },
-      cc: { optional: false, contract: { kind: "array", item: { kind: "string" } } },
-      bcc: { optional: false, contract: { kind: "array", item: { kind: "string" } } },
-      attachments: {
-        optional: false,
-        contract: {
-          kind: "array",
-          item: {
-            kind: "object",
-            properties: {
-              path: { optional: false, contract: { kind: "string" } },
-              name: { optional: false, contract: { kind: "string" } },
-              type: { optional: true, contract: { kind: "string" } },
-              size: { optional: true, contract: { kind: "number" } },
-            },
-          },
-        },
-      },
-    },
-  },
-  saveCampaignSequence: {
-    kind: "object",
-    properties: {
-      campaignId: { optional: false, contract: { kind: "string" } },
-      steps: {
-        optional: false,
-        contract: {
-          kind: "array",
-          item: {
-            kind: "object",
-            properties: {
-              id: { optional: true, contract: { kind: "string" } },
-              name: { optional: false, contract: { kind: "string" } },
-              stepType: {
-                optional: false,
-                contract: {
-                  kind: "union",
-                  choices: [
-                    { kind: "literal", values: ["email"] },
-                    { kind: "literal", values: ["task"] },
-                  ],
-                },
-              },
-              delayAmount: { optional: false, contract: { kind: "number" } },
-              delayUnit: {
-                optional: false,
-                contract: {
-                  kind: "union",
-                  choices: [
-                    { kind: "literal", values: ["minutes"] },
-                    { kind: "literal", values: ["hours"] },
-                    { kind: "literal", values: ["days"] },
-                  ],
-                },
-              },
-              subject: { optional: false, contract: { kind: "string" } },
-              bodyHtml: { optional: false, contract: { kind: "string" } },
-              attachments: {
-                optional: false,
-                contract: {
-                  kind: "array",
-                  item: {
-                    kind: "object",
-                    properties: {
-                      path: { optional: false, contract: { kind: "string" } },
-                      name: { optional: false, contract: { kind: "string" } },
-                      type: { optional: true, contract: { kind: "string" } },
-                      size: { optional: true, contract: { kind: "number" } },
-                    },
-                  },
-                },
-              },
-              taskInstructions: { optional: false, contract: { kind: "string" } },
-            },
-          },
-        },
       },
     },
   },
   addCampaignAudience: {
     kind: "object",
     properties: {
-      campaignId: { optional: false, contract: { kind: "string" } },
-      contactIds: { optional: false, contract: { kind: "array", item: { kind: "string" } } },
+      campaignId: { contract: { kind: "string" }, optional: false },
+      contactIds: { contract: { item: { kind: "string" }, kind: "array" }, optional: false },
     },
   },
-  removeCampaignRecipient: {
+  addManagedDocumentVersion: {
     kind: "object",
     properties: {
-      campaignId: { optional: false, contract: { kind: "string" } },
-      recipientId: { optional: false, contract: { kind: "string" } },
+      attachment: {
+        contract: {
+          kind: "object",
+          properties: {
+            name: { contract: { kind: "string" }, optional: false },
+            path: { contract: { kind: "string" }, optional: false },
+            size: { contract: { kind: "number" }, optional: false },
+            type: { contract: { kind: "string" }, optional: false },
+          },
+        },
+        optional: false,
+      },
+      documentId: { contract: { kind: "string" }, optional: false },
+      notes: { contract: { kind: "string" }, optional: true },
     },
+  },
+  addOpportunityComment: {
+    kind: "object",
+    properties: {
+      body: { contract: { kind: "string" }, optional: false },
+      kind: {
+        contract: {
+          choices: [
+            { kind: "literal", values: ["bid"] },
+            { kind: "literal", values: ["eoi"] },
+            { kind: "literal", values: ["rfp"] },
+            { kind: "literal", values: ["rfq"] },
+          ],
+          kind: "union",
+        },
+        optional: false,
+      },
+      mentionIds: { contract: { item: { kind: "string" }, kind: "array" }, optional: true },
+      opportunityId: { contract: { kind: "string" }, optional: false },
+    },
+  },
+  addOpportunityDocument: {
+    kind: "object",
+    properties: {
+      attachment: {
+        contract: {
+          kind: "object",
+          properties: {
+            name: { contract: { kind: "string" }, optional: false },
+            path: { contract: { kind: "string" }, optional: false },
+            size: { contract: { kind: "number" }, optional: false },
+            type: { contract: { kind: "string" }, optional: false },
+          },
+        },
+        optional: true,
+      },
+      checklistItemId: { contract: { kind: "string" }, optional: true },
+      displayName: { contract: { kind: "string" }, optional: false },
+      documentId: { contract: { kind: "string" }, optional: true },
+      kind: {
+        contract: {
+          choices: [
+            { kind: "literal", values: ["bid"] },
+            { kind: "literal", values: ["eoi"] },
+            { kind: "literal", values: ["rfp"] },
+            { kind: "literal", values: ["rfq"] },
+          ],
+          kind: "union",
+        },
+        optional: false,
+      },
+      opportunityId: { contract: { kind: "string" }, optional: false },
+      role: { contract: { kind: "string" }, optional: true },
+    },
+  },
+  addSecureShareRecipient: {
+    kind: "object",
+    properties: {
+      recipient: {
+        contract: {
+          kind: "object",
+          properties: {
+            allowDownload: {
+              contract: {
+                choices: [
+                  { kind: "literal", values: [false] },
+                  { kind: "literal", values: [true] },
+                ],
+                kind: "union",
+              },
+              optional: false,
+            },
+            email: { contract: { kind: "string" }, optional: false },
+            message: { contract: { kind: "string" }, optional: true },
+            name: { contract: { kind: "string" }, optional: false },
+          },
+        },
+        optional: false,
+      },
+      shareId: { contract: { kind: "string" }, optional: false },
+    },
+  },
+  applyCostSheetTemplate: {
+    kind: "object",
+    properties: {
+      costSheetId: { contract: { kind: "string" }, optional: false },
+      templateId: { contract: { kind: "string" }, optional: false },
+    },
+  },
+  applyDocumentMarks: {
+    kind: "object",
+    properties: {
+      placements: {
+        contract: {
+          item: {
+            kind: "object",
+            properties: {
+              appliedDate: { contract: { kind: "string" }, optional: false },
+              imagePng: { contract: { kind: "string" }, optional: true },
+              markId: { contract: { kind: "string" }, optional: false },
+              pageNumber: { contract: { kind: "number" }, optional: false },
+              rotation: { contract: { kind: "number" }, optional: false },
+              widthRatio: { contract: { kind: "number" }, optional: false },
+              xRatio: { contract: { kind: "number" }, optional: false },
+              yRatio: { contract: { kind: "number" }, optional: false },
+            },
+          },
+          kind: "array",
+        },
+        optional: false,
+      },
+      sourcePath: { contract: { kind: "string" }, optional: false },
+    },
+  },
+  archiveDocumentMark: {
+    kind: "object",
+    properties: { id: { contract: { kind: "string" }, optional: false } },
+  },
+  archiveOpportunity: {
+    kind: "object",
+    properties: {
+      archived: {
+        contract: {
+          choices: [
+            { kind: "literal", values: [false] },
+            { kind: "literal", values: [true] },
+          ],
+          kind: "union",
+        },
+        optional: false,
+      },
+      id: { contract: { kind: "string" }, optional: false },
+      kind: {
+        contract: {
+          choices: [
+            { kind: "literal", values: ["bid"] },
+            { kind: "literal", values: ["eoi"] },
+            { kind: "literal", values: ["rfp"] },
+            { kind: "literal", values: ["rfq"] },
+          ],
+          kind: "union",
+        },
+        optional: false,
+      },
+    },
+  },
+  archivePortalAccount: {
+    kind: "object",
+    properties: { id: { contract: { kind: "string" }, optional: false } },
+  },
+  bootstrapAdministrator: {
+    kind: "object",
+    properties: {
+      email: { contract: { kind: "string" }, optional: false },
+      fullName: { contract: { kind: "string" }, optional: false },
+      password: { contract: { kind: "string" }, optional: false },
+    },
+  },
+  cancelMeeting: {
+    kind: "object",
+    properties: { id: { contract: { kind: "string" }, optional: false } },
   },
   changeCampaignStatus: {
     kind: "object",
     properties: {
-      campaignId: { optional: false, contract: { kind: "string" } },
       action: {
-        optional: false,
         contract: {
-          kind: "union",
           choices: [
-            { kind: "literal", values: ["submit"] },
             { kind: "literal", values: ["approve"] },
-            { kind: "literal", values: ["start"] },
-            { kind: "literal", values: ["schedule"] },
             { kind: "literal", values: ["pause"] },
             { kind: "literal", values: ["resume"] },
+            { kind: "literal", values: ["schedule"] },
+            { kind: "literal", values: ["start"] },
+            { kind: "literal", values: ["submit"] },
           ],
-        },
-      },
-      scheduledAt: { optional: true, contract: { kind: "string" } },
-    },
-  },
-  runCampaignQueue: {
-    kind: "object",
-    properties: { campaignId: { optional: true, contract: { kind: "string" } } },
-  },
-  suppressEmail: {
-    kind: "object",
-    properties: {
-      campaignId: { optional: false, contract: { kind: "string" } },
-      email: { optional: false, contract: { kind: "string" } },
-      reason: { optional: false, contract: { kind: "string" } },
-    },
-  },
-  resolveCampaignDelivery: {
-    kind: "object",
-    properties: {
-      campaignId: { optional: false, contract: { kind: "string" } },
-      recipientId: { optional: false, contract: { kind: "string" } },
-      outcome: {
-        optional: false,
-        contract: {
           kind: "union",
+        },
+        optional: false,
+      },
+      campaignId: { contract: { kind: "string" }, optional: false },
+      scheduledAt: { contract: { kind: "string" }, optional: true },
+    },
+  },
+  clientDirectory: {
+    kind: "object",
+    properties: {
+      category: { contract: { kind: "string" }, optional: true },
+      offset: { contract: { kind: "number" }, optional: true },
+      search: { contract: { kind: "string" }, optional: true },
+      sort: { contract: { kind: "string" }, optional: true },
+    },
+  },
+  convertProspectToClient: {
+    kind: "object",
+    properties: { prospectId: { contract: { kind: "string" }, optional: false } },
+  },
+  createCampaign: {
+    kind: "object",
+    properties: {
+      approvalRequired: {
+        contract: {
           choices: [
-            { kind: "literal", values: ["delivered"] },
-            { kind: "literal", values: ["not_delivered"] },
+            { kind: "literal", values: [false] },
+            { kind: "literal", values: [true] },
           ],
+          kind: "union",
+        },
+        optional: true,
+      },
+      campaignType: { contract: { kind: "string" }, optional: false },
+      name: { contract: { kind: "string" }, optional: false },
+      objective: { contract: { kind: "string" }, optional: true },
+    },
+  },
+  createCostSheet: {
+    kind: "object",
+    properties: {
+      clientId: { contract: { kind: "string" }, optional: true },
+      currency: { contract: { kind: "string" }, optional: false },
+      name: { contract: { kind: "string" }, optional: false },
+      notes: { contract: { kind: "string" }, optional: true },
+      templateId: { contract: { kind: "string" }, optional: true },
+    },
+  },
+  createDocumentCategory: {
+    kind: "object",
+    properties: {
+      color: { contract: { kind: "string" }, optional: true },
+      description: { contract: { kind: "string" }, optional: true },
+      name: { contract: { kind: "string" }, optional: false },
+    },
+  },
+  createManagedDocument: {
+    kind: "object",
+    properties: {
+      attachment: {
+        contract: {
+          kind: "object",
+          properties: {
+            name: { contract: { kind: "string" }, optional: false },
+            path: { contract: { kind: "string" }, optional: false },
+            size: { contract: { kind: "number" }, optional: false },
+            type: { contract: { kind: "string" }, optional: false },
+          },
+        },
+        optional: false,
+      },
+      categoryId: { contract: { kind: "string" }, optional: true },
+      entityId: { contract: { kind: "string" }, optional: true },
+      entityType: { contract: { kind: "string" }, optional: true },
+      expiryDate: { contract: { kind: "string" }, optional: true },
+      id: { contract: { kind: "string" }, optional: false },
+      issueDate: { contract: { kind: "string" }, optional: true },
+      notes: { contract: { kind: "string" }, optional: true },
+      ownerId: { contract: { kind: "string" }, optional: true },
+      title: { contract: { kind: "string" }, optional: false },
+      versionNotes: { contract: { kind: "string" }, optional: true },
+    },
+  },
+  createOpportunity: { kind: "json" },
+  createProspectCompany: {
+    kind: "object",
+    properties: {
+      address: { contract: { kind: "string" }, optional: true },
+      categoryId: {
+        contract: { choices: [{ kind: "null" }, { kind: "string" }], kind: "union" },
+        optional: true,
+      },
+      city: { contract: { kind: "string" }, optional: true },
+      company: { contract: { kind: "string" }, optional: false },
+      country: { contract: { kind: "string" }, optional: true },
+      email: { contract: { kind: "string" }, optional: true },
+      employeeCount: {
+        contract: { choices: [{ kind: "null" }, { kind: "number" }], kind: "union" },
+        optional: true,
+      },
+      industry: { contract: { kind: "string" }, optional: true },
+      linkedinUrl: { contract: { kind: "string" }, optional: true },
+      logoPath: { contract: { kind: "string" }, optional: true },
+      notes: { contract: { kind: "string" }, optional: true },
+      phone: { contract: { kind: "string" }, optional: true },
+      registrationNumber: { contract: { kind: "string" }, optional: true },
+      website: { contract: { kind: "string" }, optional: true },
+    },
+  },
+  createRole: {
+    kind: "object",
+    properties: {
+      description: { contract: { kind: "string" }, optional: false },
+      name: { contract: { kind: "string" }, optional: false },
+    },
+  },
+  createSecureShare: {
+    kind: "object",
+    properties: {
+      description: { contract: { kind: "string" }, optional: true },
+      documentIds: { contract: { item: { kind: "string" }, kind: "array" }, optional: false },
+      emailMessage: { contract: { kind: "string" }, optional: true },
+      emailSubject: { contract: { kind: "string" }, optional: false },
+      expiresAt: { contract: { kind: "string" }, optional: true },
+      mailboxId: { contract: { kind: "string" }, optional: false },
+      recipients: {
+        contract: {
+          item: {
+            kind: "object",
+            properties: {
+              allowDownload: {
+                contract: {
+                  choices: [
+                    { kind: "literal", values: [false] },
+                    { kind: "literal", values: [true] },
+                  ],
+                  kind: "union",
+                },
+                optional: false,
+              },
+              email: { contract: { kind: "string" }, optional: false },
+              message: { contract: { kind: "string" }, optional: true },
+              name: { contract: { kind: "string" }, optional: false },
+            },
+          },
+          kind: "array",
+        },
+        optional: false,
+      },
+      slug: { contract: { kind: "string" }, optional: true },
+      title: { contract: { kind: "string" }, optional: false },
+    },
+  },
+  createStickyNote: {
+    kind: "object",
+    properties: {
+      body: { contract: { kind: "string" }, optional: false },
+      color: { contract: { kind: "string" }, optional: true },
+      mentionIds: { contract: { item: { kind: "string" }, kind: "array" }, optional: true },
+      pageKey: { contract: { kind: "string" }, optional: false },
+      pinned: {
+        contract: {
+          choices: [
+            { kind: "literal", values: [false] },
+            { kind: "literal", values: [true] },
+          ],
+          kind: "union",
+        },
+        optional: true,
+      },
+      title: { contract: { kind: "string" }, optional: true },
+    },
+  },
+  createStickyNoteComment: {
+    kind: "object",
+    properties: {
+      body: { contract: { kind: "string" }, optional: false },
+      color: { contract: { kind: "string" }, optional: true },
+      mentionIds: { contract: { item: { kind: "string" }, kind: "array" }, optional: true },
+      noteId: { contract: { kind: "string" }, optional: false },
+      parentId: {
+        contract: { choices: [{ kind: "null" }, { kind: "string" }], kind: "union" },
+        optional: true,
+      },
+    },
+  },
+  dbAction: {
+    kind: "object",
+    properties: {
+      action: {
+        contract: {
+          choices: [
+            { kind: "literal", values: ["delete"] },
+            { kind: "literal", values: ["insert"] },
+            { kind: "literal", values: ["select"] },
+            { kind: "literal", values: ["update"] },
+            { kind: "literal", values: ["upsert"] },
+          ],
+          kind: "union",
+        },
+        optional: false,
+      },
+      ascending: {
+        contract: {
+          choices: [
+            { kind: "literal", values: [false] },
+            { kind: "literal", values: [true] },
+          ],
+          kind: "union",
+        },
+        optional: true,
+      },
+      columns: { contract: { kind: "string" }, optional: true },
+      conflict: { contract: { kind: "string" }, optional: true },
+      count: {
+        contract: {
+          choices: [
+            { kind: "literal", values: [false] },
+            { kind: "literal", values: [true] },
+          ],
+          kind: "union",
+        },
+        optional: true,
+      },
+      filters: {
+        contract: {
+          item: {
+            kind: "object",
+            properties: {
+              column: { contract: { kind: "string" }, optional: false },
+              op: {
+                contract: {
+                  choices: [
+                    { kind: "literal", values: ["eq"] },
+                    { kind: "literal", values: ["in"] },
+                  ],
+                  kind: "union",
+                },
+                optional: false,
+              },
+              value: { contract: { kind: "json" }, optional: false },
+            },
+          },
+          kind: "array",
+        },
+        optional: false,
+      },
+      limit: { contract: { kind: "number" }, optional: true },
+      offset: { contract: { kind: "number" }, optional: true },
+      orderBy: { contract: { kind: "string" }, optional: true },
+      search: {
+        contract: {
+          kind: "object",
+          properties: {
+            columns: { contract: { item: { kind: "string" }, kind: "array" }, optional: false },
+            term: { contract: { kind: "string" }, optional: false },
+          },
+        },
+        optional: true,
+      },
+      table: {
+        contract: {
+          choices: [
+            { kind: "literal", values: ["activities"] },
+            { kind: "literal", values: ["agreement_items"] },
+            { kind: "literal", values: ["agreements"] },
+            { kind: "literal", values: ["ai_prospect_searches"] },
+            { kind: "literal", values: ["app_secrets"] },
+            { kind: "literal", values: ["applicants"] },
+            { kind: "literal", values: ["auth_sessions"] },
+            { kind: "literal", values: ["bids"] },
+            { kind: "literal", values: ["campaign_events"] },
+            { kind: "literal", values: ["campaign_recipients"] },
+            { kind: "literal", values: ["campaign_steps"] },
+            { kind: "literal", values: ["campaigns"] },
+            { kind: "literal", values: ["client_contacts"] },
+            { kind: "literal", values: ["clients"] },
+            { kind: "literal", values: ["cost_sheet_columns"] },
+            { kind: "literal", values: ["cost_sheet_items"] },
+            { kind: "literal", values: ["cost_sheet_supplier_quotes"] },
+            { kind: "literal", values: ["cost_sheet_templates"] },
+            { kind: "literal", values: ["cost_sheets"] },
+            { kind: "literal", values: ["deals"] },
+            { kind: "literal", values: ["document_access"] },
+            { kind: "literal", values: ["document_categories"] },
+            { kind: "literal", values: ["document_mark_applications"] },
+            { kind: "literal", values: ["document_marks"] },
+            { kind: "literal", values: ["document_versions"] },
+            { kind: "literal", values: ["documents"] },
+            { kind: "literal", values: ["email_suppressions"] },
+            { kind: "literal", values: ["email_templates"] },
+            { kind: "literal", values: ["employees"] },
+            { kind: "literal", values: ["expenses"] },
+            { kind: "literal", values: ["invoices"] },
+            { kind: "literal", values: ["jobs"] },
+            { kind: "literal", values: ["leave_requests"] },
+            { kind: "literal", values: ["mailbox_secrets"] },
+            { kind: "literal", values: ["mailboxes"] },
+            { kind: "literal", values: ["marketing_activities"] },
+            { kind: "literal", values: ["notification_preferences"] },
+            { kind: "literal", values: ["notifications"] },
+            { kind: "literal", values: ["page_note_comment_mentions"] },
+            { kind: "literal", values: ["page_note_comments"] },
+            { kind: "literal", values: ["page_note_mentions"] },
+            { kind: "literal", values: ["page_notes"] },
+            { kind: "literal", values: ["payments"] },
+            { kind: "literal", values: ["payroll_items"] },
+            { kind: "literal", values: ["payroll_runs"] },
+            { kind: "literal", values: ["permissions"] },
+            { kind: "literal", values: ["portal_accounts"] },
+            { kind: "literal", values: ["prequalifications"] },
+            { kind: "literal", values: ["projects"] },
+            { kind: "literal", values: ["prospect_categories"] },
+            { kind: "literal", values: ["prospect_contacts"] },
+            { kind: "literal", values: ["prospect_interactions"] },
+            { kind: "literal", values: ["prospects"] },
+            { kind: "literal", values: ["purchase_order_items"] },
+            { kind: "literal", values: ["purchase_orders"] },
+            { kind: "literal", values: ["quotation_items"] },
+            { kind: "literal", values: ["quotations"] },
+            { kind: "literal", values: ["replies"] },
+            { kind: "literal", values: ["requests"] },
+            { kind: "literal", values: ["role_permissions"] },
+            { kind: "literal", values: ["roles"] },
+            { kind: "literal", values: ["supplier_quotes"] },
+            { kind: "literal", values: ["suppliers"] },
+            { kind: "literal", values: ["system_settings"] },
+            { kind: "literal", values: ["system_users"] },
+            { kind: "literal", values: ["tasks"] },
+            { kind: "literal", values: ["vacancies"] },
+          ],
+          kind: "union",
+        },
+        optional: false,
+      },
+      values: {
+        contract: {
+          choices: [
+            { index: { kind: "json" }, kind: "object", properties: {} },
+            { item: { index: { kind: "json" }, kind: "object", properties: {} }, kind: "array" },
+          ],
+          kind: "union",
+        },
+        optional: true,
+      },
+    },
+  },
+  deleteCampaign: {
+    kind: "object",
+    properties: { campaignId: { contract: { kind: "string" }, optional: false } },
+  },
+  deleteChecklistItem: {
+    kind: "object",
+    properties: { id: { contract: { kind: "string" }, optional: false } },
+  },
+  deleteCostSheet: {
+    kind: "object",
+    properties: { costSheetId: { contract: { kind: "string" }, optional: false } },
+  },
+  deleteCostSheetColumn: {
+    kind: "object",
+    properties: {
+      columnId: { contract: { kind: "string" }, optional: false },
+      costSheetId: { contract: { kind: "string" }, optional: false },
+    },
+  },
+  deleteCostSheetItem: {
+    kind: "object",
+    properties: {
+      costSheetId: { contract: { kind: "string" }, optional: false },
+      itemId: { contract: { kind: "string" }, optional: false },
+    },
+  },
+  deleteCostSheetTemplate: {
+    kind: "object",
+    properties: { templateId: { contract: { kind: "string" }, optional: false } },
+  },
+  deleteCurrency: {
+    kind: "object",
+    properties: { id: { contract: { kind: "string" }, optional: false } },
+  },
+  deleteEmailSignature: {
+    kind: "object",
+    properties: { id: { contract: { kind: "string" }, optional: false } },
+  },
+  deleteFinanceDraft: {
+    kind: "object",
+    properties: { id: { contract: { kind: "string" }, optional: false } },
+  },
+  deleteMailbox: {
+    kind: "object",
+    properties: { id: { contract: { kind: "string" }, optional: false } },
+  },
+  deleteOpportunity: {
+    kind: "object",
+    properties: {
+      id: { contract: { kind: "string" }, optional: false },
+      kind: {
+        contract: {
+          choices: [
+            { kind: "literal", values: ["bid"] },
+            { kind: "literal", values: ["eoi"] },
+            { kind: "literal", values: ["rfp"] },
+            { kind: "literal", values: ["rfq"] },
+          ],
+          kind: "union",
+        },
+        optional: false,
+      },
+    },
+  },
+  deleteOpportunityDocument: {
+    kind: "object",
+    properties: { id: { contract: { kind: "string" }, optional: false } },
+  },
+  deleteOrganizationLocation: {
+    kind: "object",
+    properties: {
+      entityId: { contract: { kind: "string" }, optional: false },
+      entityType: {
+        contract: {
+          choices: [
+            { kind: "literal", values: ["client"] },
+            { kind: "literal", values: ["prospect"] },
+          ],
+          kind: "union",
+        },
+        optional: false,
+      },
+      locationId: { contract: { kind: "string" }, optional: false },
+    },
+  },
+  deleteProspectContact: {
+    kind: "object",
+    properties: {
+      contactId: { contract: { kind: "string" }, optional: false },
+      prospectId: { contract: { kind: "string" }, optional: false },
+    },
+  },
+  deleteStickyNote: {
+    kind: "object",
+    properties: { noteId: { contract: { kind: "string" }, optional: false } },
+  },
+  deleteStickyNoteComment: {
+    kind: "object",
+    properties: { commentId: { contract: { kind: "string" }, optional: false } },
+  },
+  deleteSystemUser: {
+    kind: "object",
+    properties: { id: { contract: { kind: "string" }, optional: false } },
+  },
+  deleteVendor: {
+    kind: "object",
+    properties: { id: { contract: { kind: "string" }, optional: false } },
+  },
+  deleteVendorQuote: {
+    kind: "object",
+    properties: { id: { contract: { kind: "string" }, optional: false } },
+  },
+  discoverProspects: {
+    kind: "object",
+    properties: {
+      categoryId: {
+        contract: { choices: [{ kind: "null" }, { kind: "string" }], kind: "union" },
+        optional: true,
+      },
+      limit: { contract: { kind: "number" }, optional: true },
+      prompt: { contract: { kind: "string" }, optional: false },
+    },
+  },
+  getCampaignWorkspace: {
+    kind: "object",
+    properties: { campaignId: { contract: { kind: "string" }, optional: false } },
+  },
+  getCostSheetWorkspace: {
+    kind: "object",
+    properties: { costSheetId: { contract: { kind: "string" }, optional: false } },
+  },
+  getFinanceWorkspace: {
+    choices: [
+      {
+        kind: "object",
+        properties: {
+          sourceId: { contract: { kind: "string" }, optional: true },
+          sourceType: { contract: { kind: "string" }, optional: true },
         },
       },
+      { kind: "undefined" },
+    ],
+    kind: "union",
+  },
+  getMeeting: {
+    kind: "object",
+    properties: { id: { contract: { kind: "string" }, optional: false } },
+  },
+  getOpportunityWorkspace: {
+    kind: "object",
+    properties: {
+      id: { contract: { kind: "string" }, optional: false },
+      kind: {
+        contract: {
+          choices: [
+            { kind: "literal", values: ["bid"] },
+            { kind: "literal", values: ["eoi"] },
+            { kind: "literal", values: ["rfp"] },
+            { kind: "literal", values: ["rfq"] },
+          ],
+          kind: "union",
+        },
+        optional: false,
+      },
+    },
+  },
+  getStickyNotes: {
+    kind: "object",
+    properties: { pageKey: { contract: { kind: "string" }, optional: false } },
+  },
+  importProspectContacts: {
+    kind: "object",
+    properties: {
+      rows: {
+        contract: {
+          item: {
+            kind: "object",
+            properties: {
+              categoryId: {
+                contract: { choices: [{ kind: "null" }, { kind: "string" }], kind: "union" },
+                optional: true,
+              },
+              company: { contract: { kind: "string" }, optional: false },
+              email: { contract: { kind: "string" }, optional: true },
+              firstName: { contract: { kind: "string" }, optional: true },
+              gender: { contract: { kind: "string" }, optional: true },
+              jobTitle: { contract: { kind: "string" }, optional: true },
+              lastName: { contract: { kind: "string" }, optional: true },
+              linkedinUrl: { contract: { kind: "string" }, optional: true },
+              phone: { contract: { kind: "string" }, optional: true },
+              website: { contract: { kind: "string" }, optional: true },
+            },
+          },
+          kind: "array",
+        },
+        optional: false,
+      },
+      sourceFile: { contract: { kind: "string" }, optional: true },
+    },
+  },
+  linkCostSheet: {
+    kind: "object",
+    properties: {
+      costSheetId: { contract: { kind: "string" }, optional: true },
+      create: {
+        contract: {
+          kind: "object",
+          properties: {
+            clientId: { contract: { kind: "string" }, optional: true },
+            currency: { contract: { kind: "string" }, optional: false },
+            name: { contract: { kind: "string" }, optional: false },
+            notes: { contract: { kind: "string" }, optional: true },
+          },
+        },
+        optional: true,
+      },
+      kind: {
+        contract: {
+          choices: [
+            { kind: "literal", values: ["bid"] },
+            { kind: "literal", values: ["eoi"] },
+            { kind: "literal", values: ["rfp"] },
+            { kind: "literal", values: ["rfq"] },
+          ],
+          kind: "union",
+        },
+        optional: false,
+      },
+      opportunityId: { contract: { kind: "string" }, optional: false },
+    },
+  },
+  listOpportunities: {
+    kind: "object",
+    properties: {
+      archived: {
+        contract: {
+          choices: [
+            { kind: "literal", values: [false] },
+            { kind: "literal", values: [true] },
+          ],
+          kind: "union",
+        },
+        optional: true,
+      },
+      kind: {
+        contract: {
+          choices: [
+            { kind: "literal", values: ["bid"] },
+            { kind: "literal", values: ["eoi"] },
+            { kind: "literal", values: ["rfp"] },
+            { kind: "literal", values: ["rfq"] },
+          ],
+          kind: "union",
+        },
+        optional: false,
+      },
+      page: { contract: { kind: "number" }, optional: true },
+      pageSize: { contract: { kind: "number" }, optional: true },
+      search: { contract: { kind: "string" }, optional: true },
     },
   },
   listOrganizationLocations: {
     kind: "object",
     properties: {
+      entityId: { contract: { kind: "string" }, optional: false },
       entityType: {
-        optional: false,
         contract: {
-          kind: "union",
           choices: [
-            { kind: "literal", values: ["prospect"] },
             { kind: "literal", values: ["client"] },
+            { kind: "literal", values: ["prospect"] },
           ],
+          kind: "union",
         },
+        optional: false,
       },
-      entityId: { optional: false, contract: { kind: "string" } },
     },
   },
-  saveOrganizationLocation: { kind: "json" },
-  deleteOrganizationLocation: {
+  login: {
     kind: "object",
     properties: {
-      entityType: {
-        optional: false,
-        contract: {
-          kind: "union",
-          choices: [
-            { kind: "literal", values: ["prospect"] },
-            { kind: "literal", values: ["client"] },
-          ],
-        },
-      },
-      entityId: { optional: false, contract: { kind: "string" } },
-      locationId: { optional: false, contract: { kind: "string" } },
+      email: { contract: { kind: "string" }, optional: false },
+      password: { contract: { kind: "string" }, optional: false },
     },
   },
-  getMeeting: {
+  markNotificationRead: {
     kind: "object",
-    properties: { id: { optional: false, contract: { kind: "string" } } },
+    properties: { notificationId: { contract: { kind: "string" }, optional: false } },
+  },
+  mergeOpportunityDocuments: {
+    kind: "object",
+    properties: {
+      kind: {
+        contract: {
+          choices: [
+            { kind: "literal", values: ["bid"] },
+            { kind: "literal", values: ["eoi"] },
+            { kind: "literal", values: ["rfp"] },
+            { kind: "literal", values: ["rfq"] },
+          ],
+          kind: "union",
+        },
+        optional: false,
+      },
+      opportunityId: { contract: { kind: "string" }, optional: false },
+      outputName: { contract: { kind: "string" }, optional: false },
+      pages: { contract: { item: { kind: "json" }, kind: "array" }, optional: true },
+      sources: {
+        contract: {
+          item: {
+            kind: "object",
+            properties: {
+              id: { contract: { kind: "string" }, optional: false },
+              kind: {
+                contract: {
+                  choices: [
+                    { kind: "literal", values: ["library"] },
+                    { kind: "literal", values: ["tender"] },
+                  ],
+                  kind: "union",
+                },
+                optional: false,
+              },
+            },
+          },
+          kind: "array",
+        },
+        optional: false,
+      },
+    },
+  },
+  openSecureShare: {
+    kind: "object",
+    properties: {
+      slug: { contract: { kind: "string" }, optional: false },
+      token: { contract: { kind: "string" }, optional: true },
+    },
+  },
+  postFinanceTransaction: {
+    kind: "object",
+    properties: { id: { contract: { kind: "string" }, optional: false } },
+  },
+  prospectDirectory: {
+    kind: "object",
+    properties: {
+      category: { contract: { kind: "string" }, optional: true },
+      offset: { contract: { kind: "number" }, optional: true },
+      search: { contract: { kind: "string" }, optional: true },
+      sort: { contract: { kind: "string" }, optional: true },
+    },
+  },
+  recordFinancePayment: {
+    kind: "object",
+    properties: {
+      amount: { contract: { kind: "number" }, optional: false },
+      date: { contract: { kind: "string" }, optional: false },
+      id: { contract: { kind: "string" }, optional: false },
+      method: { contract: { kind: "string" }, optional: true },
+      notes: { contract: { kind: "string" }, optional: true },
+      reference: { contract: { kind: "string" }, optional: true },
+    },
+  },
+  removeCampaignRecipient: {
+    kind: "object",
+    properties: {
+      campaignId: { contract: { kind: "string" }, optional: false },
+      recipientId: { contract: { kind: "string" }, optional: false },
+    },
+  },
+  requestSecureShareOtp: {
+    kind: "object",
+    properties: { slug: { contract: { kind: "string" }, optional: false } },
+  },
+  resendSecureShareInvitation: {
+    kind: "object",
+    properties: { recipientId: { contract: { kind: "string" }, optional: false } },
+  },
+  resolveCampaignDelivery: {
+    kind: "object",
+    properties: {
+      campaignId: { contract: { kind: "string" }, optional: false },
+      outcome: {
+        contract: {
+          choices: [
+            { kind: "literal", values: ["delivered"] },
+            { kind: "literal", values: ["not_delivered"] },
+          ],
+          kind: "union",
+        },
+        optional: false,
+      },
+      recipientId: { contract: { kind: "string" }, optional: false },
+    },
+  },
+  revealPortalCredentials: {
+    kind: "object",
+    properties: { id: { contract: { kind: "string" }, optional: false } },
+  },
+  runCampaignQueue: {
+    kind: "object",
+    properties: { campaignId: { contract: { kind: "string" }, optional: true } },
+  },
+  saveCampaignSequence: {
+    kind: "object",
+    properties: {
+      campaignId: { contract: { kind: "string" }, optional: false },
+      steps: {
+        contract: {
+          item: {
+            kind: "object",
+            properties: {
+              attachments: {
+                contract: {
+                  item: {
+                    kind: "object",
+                    properties: {
+                      name: { contract: { kind: "string" }, optional: false },
+                      path: { contract: { kind: "string" }, optional: false },
+                      size: { contract: { kind: "number" }, optional: true },
+                      type: { contract: { kind: "string" }, optional: true },
+                    },
+                  },
+                  kind: "array",
+                },
+                optional: false,
+              },
+              bodyHtml: { contract: { kind: "string" }, optional: false },
+              delayAmount: { contract: { kind: "number" }, optional: false },
+              delayUnit: {
+                contract: {
+                  choices: [
+                    { kind: "literal", values: ["days"] },
+                    { kind: "literal", values: ["hours"] },
+                    { kind: "literal", values: ["minutes"] },
+                  ],
+                  kind: "union",
+                },
+                optional: false,
+              },
+              id: { contract: { kind: "string" }, optional: true },
+              name: { contract: { kind: "string" }, optional: false },
+              stepType: {
+                contract: {
+                  choices: [
+                    { kind: "literal", values: ["email"] },
+                    { kind: "literal", values: ["task"] },
+                  ],
+                  kind: "union",
+                },
+                optional: false,
+              },
+              subject: { contract: { kind: "string" }, optional: false },
+              taskInstructions: { contract: { kind: "string" }, optional: false },
+            },
+          },
+          kind: "array",
+        },
+        optional: false,
+      },
+    },
+  },
+  saveChecklistItem: {
+    kind: "object",
+    properties: {
+      assigneeId: { contract: { kind: "string" }, optional: true },
+      documentRequired: {
+        contract: {
+          choices: [
+            { kind: "literal", values: [false] },
+            { kind: "literal", values: [true] },
+          ],
+          kind: "union",
+        },
+        optional: true,
+      },
+      dueAt: { contract: { kind: "string" }, optional: true },
+      id: { contract: { kind: "string" }, optional: true },
+      kind: {
+        contract: {
+          choices: [
+            { kind: "literal", values: ["bid"] },
+            { kind: "literal", values: ["eoi"] },
+            { kind: "literal", values: ["rfp"] },
+            { kind: "literal", values: ["rfq"] },
+          ],
+          kind: "union",
+        },
+        optional: false,
+      },
+      notes: { contract: { kind: "string" }, optional: true },
+      opportunityId: { contract: { kind: "string" }, optional: false },
+      title: { contract: { kind: "string" }, optional: false },
+    },
+  },
+  saveCostSheetAsTemplate: {
+    kind: "object",
+    properties: {
+      costSheetId: { contract: { kind: "string" }, optional: false },
+      description: { contract: { kind: "string" }, optional: true },
+      name: { contract: { kind: "string" }, optional: false },
+    },
+  },
+  saveCostSheetColumn: {
+    kind: "object",
+    properties: {
+      columnId: { contract: { kind: "string" }, optional: true },
+      costSheetId: { contract: { kind: "string" }, optional: false },
+      dataType: {
+        contract: {
+          choices: [
+            { kind: "literal", values: ["formula"] },
+            { kind: "literal", values: ["number"] },
+            { kind: "literal", values: ["text"] },
+          ],
+          kind: "union",
+        },
+        optional: false,
+      },
+      defaultValue: { contract: { kind: "string" }, optional: false },
+      formulaExpression: { contract: { kind: "string" }, optional: false },
+      key: { contract: { kind: "string" }, optional: false },
+      name: { contract: { kind: "string" }, optional: false },
+    },
+  },
+  saveCostSheetColumnRules: {
+    kind: "object",
+    properties: {
+      costSheetId: { contract: { kind: "string" }, optional: false },
+      rules: { contract: { kind: "object", properties: {} }, optional: false },
+    },
+  },
+  saveCostSheetItem: {
+    kind: "object",
+    properties: {
+      attachments: {
+        contract: {
+          item: {
+            kind: "object",
+            properties: {
+              name: { contract: { kind: "string" }, optional: false },
+              path: { contract: { kind: "string" }, optional: false },
+              size: { contract: { kind: "number" }, optional: false },
+              type: { contract: { kind: "string" }, optional: false },
+            },
+          },
+          kind: "array",
+        },
+        optional: false,
+      },
+      category: { contract: { kind: "string" }, optional: false },
+      costSheetId: { contract: { kind: "string" }, optional: false },
+      customValues: {
+        contract: {
+          index: { choices: [{ kind: "number" }, { kind: "string" }], kind: "union" },
+          kind: "object",
+          properties: {},
+        },
+        optional: false,
+      },
+      description: { contract: { kind: "string" }, optional: false },
+      itemId: { contract: { kind: "string" }, optional: true },
+      markupPercent: { contract: { kind: "number" }, optional: false },
+      quantity: { contract: { kind: "number" }, optional: false },
+      unitCost: { contract: { kind: "number" }, optional: false },
+    },
+  },
+  saveCurrency: {
+    kind: "object",
+    properties: {
+      code: { contract: { kind: "string" }, optional: false },
+      id: { contract: { kind: "string" }, optional: true },
+      isActive: {
+        contract: {
+          choices: [
+            { kind: "literal", values: [false] },
+            { kind: "literal", values: [true] },
+          ],
+          kind: "union",
+        },
+        optional: true,
+      },
+      isDefault: {
+        contract: {
+          choices: [
+            { kind: "literal", values: [false] },
+            { kind: "literal", values: [true] },
+          ],
+          kind: "union",
+        },
+        optional: true,
+      },
+      name: { contract: { kind: "string" }, optional: false },
+      symbol: { contract: { kind: "string" }, optional: false },
+    },
+  },
+  saveEmailSignature: {
+    kind: "object",
+    properties: {
+      html: { contract: { kind: "string" }, optional: true },
+      id: { contract: { kind: "string" }, optional: true },
+      imageUrl: { contract: { kind: "string" }, optional: true },
+      mailboxId: { contract: { kind: "string" }, optional: false },
+      name: { contract: { kind: "string" }, optional: false },
+      text: { contract: { kind: "string" }, optional: true },
+      type: { contract: { kind: "string" }, optional: false },
+    },
+  },
+  saveFinanceTransaction: {
+    kind: "object",
+    properties: {
+      attachments: {
+        contract: {
+          item: {
+            kind: "object",
+            properties: {
+              name: { contract: { kind: "string" }, optional: false },
+              path: { contract: { kind: "string" }, optional: false },
+              size: { contract: { kind: "number" }, optional: false },
+              type: { contract: { kind: "string" }, optional: false },
+            },
+          },
+          kind: "array",
+        },
+        optional: true,
+      },
+      clientId: { contract: { kind: "string" }, optional: true },
+      counterparty: { contract: { kind: "string" }, optional: true },
+      currency: { contract: { kind: "string" }, optional: false },
+      date: { contract: { kind: "string" }, optional: false },
+      description: { contract: { kind: "string" }, optional: false },
+      dueDate: { contract: { kind: "string" }, optional: true },
+      id: { contract: { kind: "string" }, optional: true },
+      lines: {
+        contract: {
+          item: {
+            kind: "object",
+            properties: {
+              accountId: { contract: { kind: "string" }, optional: false },
+              description: { contract: { kind: "string" }, optional: false },
+              quantity: { contract: { kind: "number" }, optional: false },
+              taxRate: { contract: { kind: "number" }, optional: true },
+              unitAmount: { contract: { kind: "number" }, optional: false },
+            },
+          },
+          kind: "array",
+        },
+        optional: false,
+      },
+      notes: { contract: { kind: "string" }, optional: true },
+      projectId: { contract: { kind: "string" }, optional: true },
+      reference: { contract: { kind: "string" }, optional: true },
+      sourceId: { contract: { kind: "string" }, optional: true },
+      sourceType: { contract: { kind: "string" }, optional: true },
+      taxRecoverable: {
+        contract: {
+          choices: [
+            { kind: "literal", values: [false] },
+            { kind: "literal", values: [true] },
+          ],
+          kind: "union",
+        },
+        optional: true,
+      },
+      taxTreatment: {
+        contract: {
+          choices: [
+            { kind: "literal", values: ["exempt"] },
+            { kind: "literal", values: ["none"] },
+            { kind: "literal", values: ["standard"] },
+            { kind: "literal", values: ["zero_rated"] },
+          ],
+          kind: "union",
+        },
+        optional: false,
+      },
+      type: {
+        contract: {
+          choices: [
+            { kind: "literal", values: ["expense"] },
+            { kind: "literal", values: ["revenue"] },
+          ],
+          kind: "union",
+        },
+        optional: false,
+      },
+    },
+  },
+  saveMailbox: {
+    kind: "object",
+    properties: {
+      email: { contract: { kind: "string" }, optional: false },
+      fromName: { contract: { kind: "string" }, optional: true },
+      id: { contract: { kind: "string" }, optional: true },
+      imapHost: { contract: { kind: "string" }, optional: true },
+      imapPort: { contract: { kind: "number" }, optional: true },
+      name: { contract: { kind: "string" }, optional: false },
+      provider: { contract: { kind: "string" }, optional: false },
+      smtpHost: { contract: { kind: "string" }, optional: true },
+      smtpPort: { contract: { kind: "number" }, optional: true },
+      username: { contract: { kind: "string" }, optional: true },
+    },
+  },
+  saveMailboxCredentials: {
+    kind: "object",
+    properties: {
+      imapPassword: { contract: { kind: "string" }, optional: true },
+      mailboxId: { contract: { kind: "string" }, optional: false },
+      smtpPassword: { contract: { kind: "string" }, optional: true },
+    },
   },
   saveMeeting: {
     kind: "object",
     properties: {
-      id: { optional: true, contract: { kind: "string" } },
-      title: { optional: false, contract: { kind: "string" } },
-      description: { optional: true, contract: { kind: "string" } },
-      startsAt: { optional: false, contract: { kind: "string" } },
-      endsAt: { optional: false, contract: { kind: "string" } },
-      timezone: { optional: true, contract: { kind: "string" } },
+      attendees: { contract: { item: { kind: "string" }, kind: "array" }, optional: true },
+      description: { contract: { kind: "string" }, optional: true },
+      endsAt: { contract: { kind: "string" }, optional: false },
+      id: { contract: { kind: "string" }, optional: true },
+      joinUrl: { contract: { kind: "string" }, optional: true },
+      location: { contract: { kind: "string" }, optional: true },
+      mailboxId: { contract: { kind: "string" }, optional: true },
       provider: {
-        optional: false,
         contract: {
-          kind: "union",
           choices: [
-            { kind: "literal", values: ["gwero"] },
+            { kind: "literal", values: ["custom"] },
             { kind: "literal", values: ["google_meet"] },
+            { kind: "literal", values: ["gwero"] },
             { kind: "literal", values: ["microsoft_teams"] },
             { kind: "literal", values: ["zoom"] },
-            { kind: "literal", values: ["custom"] },
           ],
+          kind: "union",
         },
+        optional: false,
       },
-      mailboxId: { optional: true, contract: { kind: "string" } },
-      joinUrl: { optional: true, contract: { kind: "string" } },
-      location: { optional: true, contract: { kind: "string" } },
-      attendees: { optional: true, contract: { kind: "array", item: { kind: "string" } } },
+      startsAt: { contract: { kind: "string" }, optional: false },
+      timezone: { contract: { kind: "string" }, optional: true },
+      title: { contract: { kind: "string" }, optional: false },
     },
   },
-  cancelMeeting: {
+  saveOrganizationLocation: { kind: "json" },
+  savePortalAccount: {
     kind: "object",
-    properties: { id: { optional: false, contract: { kind: "string" } } },
+    properties: {
+      category: { contract: { kind: "string" }, optional: false },
+      credentials: {
+        contract: {
+          kind: "object",
+          properties: {
+            accountNumber: { contract: { kind: "string" }, optional: false },
+            loginIdentifier: { contract: { kind: "string" }, optional: false },
+            password: { contract: { kind: "string" }, optional: false },
+            recoveryEmail: { contract: { kind: "string" }, optional: false },
+            recoveryPhone: { contract: { kind: "string" }, optional: false },
+          },
+        },
+        optional: true,
+      },
+      id: { contract: { kind: "string" }, optional: true },
+      notes: { contract: { kind: "string" }, optional: false },
+      portalName: { contract: { kind: "string" }, optional: false },
+      portalUrl: { contract: { kind: "string" }, optional: false },
+      websiteUrl: { contract: { kind: "string" }, optional: false },
+    },
+  },
+  saveProviderSecrets: { index: { kind: "string" }, kind: "object", properties: {} },
+  saveSignature: {
+    kind: "object",
+    properties: {
+      id: { contract: { kind: "string" }, optional: false },
+      imagePath: { contract: { kind: "string" }, optional: false },
+      name: { contract: { kind: "string" }, optional: false },
+    },
+  },
+  saveStamp: {
+    kind: "object",
+    properties: {
+      design: {
+        contract: {
+          kind: "object",
+          properties: {
+            color: { contract: { kind: "string" }, optional: false },
+            datePrefix: { contract: { kind: "string" }, optional: false },
+            distressed: { contract: { kind: "number" }, optional: false },
+            includeDate: {
+              contract: {
+                choices: [
+                  { kind: "literal", values: [false] },
+                  { kind: "literal", values: [true] },
+                ],
+                kind: "union",
+              },
+              optional: false,
+            },
+            primaryText: { contract: { kind: "string" }, optional: false },
+            rotation: { contract: { kind: "number" }, optional: false },
+            secondaryText: { contract: { kind: "string" }, optional: false },
+            shape: {
+              contract: {
+                choices: [
+                  { kind: "literal", values: ["circle"] },
+                  { kind: "literal", values: ["oval"] },
+                  { kind: "literal", values: ["rectangle"] },
+                ],
+                kind: "union",
+              },
+              optional: false,
+            },
+          },
+        },
+        optional: false,
+      },
+      id: { contract: { kind: "string" }, optional: true },
+      name: { contract: { kind: "string" }, optional: false },
+    },
+  },
+  saveSystemSettings: {
+    kind: "object",
+    properties: {
+      group: { contract: { kind: "string" }, optional: false },
+      values: {
+        contract: {
+          index: {
+            choices: [
+              { kind: "literal", values: [false] },
+              { kind: "literal", values: [true] },
+              { kind: "null" },
+              { kind: "number" },
+              { kind: "string" },
+            ],
+            kind: "union",
+          },
+          kind: "object",
+          properties: {},
+        },
+        optional: false,
+      },
+    },
+  },
+  saveSystemUser: {
+    kind: "object",
+    properties: {
+      email: { contract: { kind: "string" }, optional: false },
+      fullName: { contract: { kind: "string" }, optional: false },
+      id: { contract: { kind: "string" }, optional: true },
+      password: { contract: { kind: "string" }, optional: true },
+      roleId: {
+        contract: { choices: [{ kind: "null" }, { kind: "string" }], kind: "union" },
+        optional: false,
+      },
+      status: { contract: { kind: "string" }, optional: false },
+    },
+  },
+  saveVendor: {
+    kind: "object",
+    properties: {
+      category: { contract: { kind: "string" }, optional: true },
+      contactName: { contract: { kind: "string" }, optional: true },
+      email: { contract: { kind: "string" }, optional: true },
+      id: { contract: { kind: "string" }, optional: true },
+      name: { contract: { kind: "string" }, optional: false },
+      notes: { contract: { kind: "string" }, optional: true },
+      phone: { contract: { kind: "string" }, optional: true },
+    },
+  },
+  saveVendorQuote: {
+    kind: "object",
+    properties: {
+      amount: { contract: { kind: "number" }, optional: false },
+      attachment: {
+        contract: {
+          kind: "object",
+          properties: {
+            name: { contract: { kind: "string" }, optional: false },
+            path: { contract: { kind: "string" }, optional: false },
+            size: { contract: { kind: "number" }, optional: false },
+            type: { contract: { kind: "string" }, optional: false },
+          },
+        },
+        optional: true,
+      },
+      currency: { contract: { kind: "string" }, optional: false },
+      id: { contract: { kind: "string" }, optional: true },
+      notes: { contract: { kind: "string" }, optional: true },
+      quoteDate: { contract: { kind: "string" }, optional: true },
+      quoteReference: { contract: { kind: "string" }, optional: true },
+      sourceName: { contract: { kind: "string" }, optional: false },
+      supplierId: { contract: { kind: "string" }, optional: true },
+      validUntil: { contract: { kind: "string" }, optional: true },
+    },
+  },
+  searchEverywhere: {
+    kind: "object",
+    properties: { query: { contract: { kind: "string" }, optional: false } },
+  },
+  sendCampaign: {
+    kind: "object",
+    properties: { campaignId: { contract: { kind: "string" }, optional: false } },
+  },
+  sendProspectEmail: {
+    kind: "object",
+    properties: {
+      attachments: {
+        contract: {
+          item: {
+            kind: "object",
+            properties: {
+              name: { contract: { kind: "string" }, optional: false },
+              path: { contract: { kind: "string" }, optional: false },
+              size: { contract: { kind: "number" }, optional: false },
+              type: { contract: { kind: "string" }, optional: false },
+            },
+          },
+          kind: "array",
+        },
+        optional: true,
+      },
+      body: { contract: { kind: "string" }, optional: false },
+      bodyHtml: { contract: { kind: "string" }, optional: true },
+      contactId: { contract: { kind: "string" }, optional: false },
+      mailboxId: { contract: { kind: "string" }, optional: false },
+      prospectId: { contract: { kind: "string" }, optional: false },
+      subject: { contract: { kind: "string" }, optional: false },
+    },
+  },
+  setChecklistStatus: {
+    kind: "object",
+    properties: {
+      complete: {
+        contract: {
+          choices: [
+            { kind: "literal", values: [false] },
+            { kind: "literal", values: [true] },
+          ],
+          kind: "union",
+        },
+        optional: false,
+      },
+      id: { contract: { kind: "string" }, optional: false },
+    },
+  },
+  setCostSheetSourceQuote: {
+    kind: "object",
+    properties: {
+      costSheetId: { contract: { kind: "string" }, optional: false },
+      linked: {
+        contract: {
+          choices: [
+            { kind: "literal", values: [false] },
+            { kind: "literal", values: [true] },
+          ],
+          kind: "union",
+        },
+        optional: false,
+      },
+      quoteId: { contract: { kind: "string" }, optional: false },
+    },
+  },
+  setDefaultMailbox: {
+    kind: "object",
+    properties: { mailboxId: { contract: { kind: "string" }, optional: false } },
+  },
+  setMailboxUserAccess: {
+    kind: "object",
+    properties: {
+      canManage: {
+        contract: {
+          choices: [
+            { kind: "literal", values: [false] },
+            { kind: "literal", values: [true] },
+          ],
+          kind: "union",
+        },
+        optional: true,
+      },
+      canSend: {
+        contract: {
+          choices: [
+            { kind: "literal", values: [false] },
+            { kind: "literal", values: [true] },
+          ],
+          kind: "union",
+        },
+        optional: false,
+      },
+      mailboxId: { contract: { kind: "string" }, optional: false },
+      userId: { contract: { kind: "string" }, optional: false },
+    },
+  },
+  setManagedDocumentAccess: {
+    kind: "object",
+    properties: {
+      documentId: { contract: { kind: "string" }, optional: false },
+      grants: {
+        contract: {
+          item: {
+            kind: "object",
+            properties: {
+              accessLevel: {
+                contract: {
+                  choices: [
+                    { kind: "literal", values: ["edit"] },
+                    { kind: "literal", values: ["manage"] },
+                    { kind: "literal", values: ["view"] },
+                  ],
+                  kind: "union",
+                },
+                optional: false,
+              },
+              userId: { contract: { kind: "string" }, optional: false },
+            },
+          },
+          kind: "array",
+        },
+        optional: false,
+      },
+    },
+  },
+  setRolePermission: {
+    kind: "object",
+    properties: {
+      enabled: {
+        contract: {
+          choices: [
+            { kind: "literal", values: [false] },
+            { kind: "literal", values: [true] },
+          ],
+          kind: "union",
+        },
+        optional: false,
+      },
+      permissionId: { contract: { kind: "string" }, optional: false },
+      roleId: { contract: { kind: "string" }, optional: false },
+    },
+  },
+  submitOpportunity: {
+    kind: "object",
+    properties: {
+      bodyHtml: { contract: { kind: "string" }, optional: true },
+      bodyText: { contract: { kind: "string" }, optional: true },
+      cc: { contract: { kind: "string" }, optional: true },
+      channel: {
+        contract: {
+          choices: [
+            { kind: "literal", values: ["email"] },
+            { kind: "literal", values: ["hand_delivery"] },
+            { kind: "literal", values: ["portal"] },
+          ],
+          kind: "union",
+        },
+        optional: false,
+      },
+      fileMode: {
+        contract: {
+          choices: [
+            { kind: "literal", values: ["merged"] },
+            { kind: "literal", values: ["separate"] },
+          ],
+          kind: "union",
+        },
+        optional: true,
+      },
+      kind: {
+        contract: {
+          choices: [
+            { kind: "literal", values: ["bid"] },
+            { kind: "literal", values: ["eoi"] },
+            { kind: "literal", values: ["rfp"] },
+            { kind: "literal", values: ["rfq"] },
+          ],
+          kind: "union",
+        },
+        optional: false,
+      },
+      mailboxId: { contract: { kind: "string" }, optional: true },
+      opportunityId: { contract: { kind: "string" }, optional: false },
+      recipientEmail: { contract: { kind: "string" }, optional: true },
+      subject: { contract: { kind: "string" }, optional: true },
+    },
+  },
+  suppressEmail: {
+    kind: "object",
+    properties: {
+      campaignId: { contract: { kind: "string" }, optional: false },
+      email: { contract: { kind: "string" }, optional: false },
+      reason: { contract: { kind: "string" }, optional: false },
+    },
+  },
+  testMailbox: {
+    kind: "object",
+    properties: { mailboxId: { contract: { kind: "string" }, optional: false } },
+  },
+  updateCampaign: {
+    kind: "object",
+    properties: {
+      approvalRequired: {
+        contract: {
+          choices: [
+            { kind: "literal", values: [false] },
+            { kind: "literal", values: [true] },
+          ],
+          kind: "union",
+        },
+        optional: false,
+      },
+      attachments: {
+        contract: {
+          item: {
+            kind: "object",
+            properties: {
+              name: { contract: { kind: "string" }, optional: false },
+              path: { contract: { kind: "string" }, optional: false },
+              size: { contract: { kind: "number" }, optional: true },
+              type: { contract: { kind: "string" }, optional: true },
+            },
+          },
+          kind: "array",
+        },
+        optional: false,
+      },
+      bcc: { contract: { item: { kind: "string" }, kind: "array" }, optional: false },
+      campaignId: { contract: { kind: "string" }, optional: false },
+      campaignType: { contract: { kind: "string" }, optional: false },
+      cc: { contract: { item: { kind: "string" }, kind: "array" }, optional: false },
+      dailyLimit: { contract: { kind: "number" }, optional: false },
+      mailboxId: { contract: { kind: "string" }, optional: false },
+      name: { contract: { kind: "string" }, optional: false },
+      objective: { contract: { kind: "string" }, optional: false },
+      ownerId: { contract: { kind: "string" }, optional: false },
+      stopOnBounce: {
+        contract: {
+          choices: [
+            { kind: "literal", values: [false] },
+            { kind: "literal", values: [true] },
+          ],
+          kind: "union",
+        },
+        optional: false,
+      },
+      stopOnReply: {
+        contract: {
+          choices: [
+            { kind: "literal", values: [false] },
+            { kind: "literal", values: [true] },
+          ],
+          kind: "union",
+        },
+        optional: false,
+      },
+      timezone: { contract: { kind: "string" }, optional: false },
+      trackClicks: {
+        contract: {
+          choices: [
+            { kind: "literal", values: [false] },
+            { kind: "literal", values: [true] },
+          ],
+          kind: "union",
+        },
+        optional: false,
+      },
+      trackOpens: {
+        contract: {
+          choices: [
+            { kind: "literal", values: [false] },
+            { kind: "literal", values: [true] },
+          ],
+          kind: "union",
+        },
+        optional: false,
+      },
+    },
+  },
+  updateCostSheet: {
+    kind: "object",
+    properties: {
+      costSheetId: { contract: { kind: "string" }, optional: false },
+      name: { contract: { kind: "string" }, optional: false },
+      notes: { contract: { kind: "string" }, optional: false },
+      status: { contract: { kind: "string" }, optional: false },
+    },
+  },
+  updateMailboxProfile: {
+    kind: "object",
+    properties: {
+      fromName: { contract: { kind: "string" }, optional: true },
+      id: { contract: { kind: "string" }, optional: false },
+      name: { contract: { kind: "string" }, optional: false },
+    },
+  },
+  updateManagedDocument: {
+    kind: "object",
+    properties: {
+      categoryId: { contract: { kind: "string" }, optional: true },
+      entityType: { contract: { kind: "string" }, optional: true },
+      expiryDate: { contract: { kind: "string" }, optional: true },
+      id: { contract: { kind: "string" }, optional: false },
+      issueDate: { contract: { kind: "string" }, optional: true },
+      notes: { contract: { kind: "string" }, optional: true },
+      ownerId: { contract: { kind: "string" }, optional: true },
+      status: { contract: { kind: "string" }, optional: true },
+      title: { contract: { kind: "string" }, optional: false },
+    },
+  },
+  updateOpportunity: { kind: "json" },
+  updateOpportunityDocument: {
+    kind: "object",
+    properties: {
+      id: { contract: { kind: "string" }, optional: false },
+      include: {
+        contract: {
+          choices: [
+            { kind: "literal", values: [false] },
+            { kind: "literal", values: [true] },
+          ],
+          kind: "union",
+        },
+        optional: false,
+      },
+      outgoingName: { contract: { kind: "string" }, optional: false },
+    },
+  },
+  updateSecureShareRecipient: {
+    kind: "object",
+    properties: {
+      allowDownload: {
+        contract: {
+          choices: [
+            { kind: "literal", values: [false] },
+            { kind: "literal", values: [true] },
+          ],
+          kind: "union",
+        },
+        optional: true,
+      },
+      id: { contract: { kind: "string" }, optional: false },
+      revoked: {
+        contract: {
+          choices: [
+            { kind: "literal", values: [false] },
+            { kind: "literal", values: [true] },
+          ],
+          kind: "union",
+        },
+        optional: true,
+      },
+    },
+  },
+  updateSecureShareStatus: {
+    kind: "object",
+    properties: {
+      id: { contract: { kind: "string" }, optional: false },
+      status: {
+        contract: {
+          choices: [
+            { kind: "literal", values: ["active"] },
+            { kind: "literal", values: ["revoked"] },
+          ],
+          kind: "union",
+        },
+        optional: false,
+      },
+    },
+  },
+  updateStickyNote: {
+    kind: "object",
+    properties: {
+      body: { contract: { kind: "string" }, optional: false },
+      color: { contract: { kind: "string" }, optional: true },
+      mentionIds: { contract: { item: { kind: "string" }, kind: "array" }, optional: true },
+      noteId: { contract: { kind: "string" }, optional: false },
+      pageKey: { contract: { kind: "string" }, optional: false },
+      pinned: {
+        contract: {
+          choices: [
+            { kind: "literal", values: [false] },
+            { kind: "literal", values: [true] },
+          ],
+          kind: "union",
+        },
+        optional: true,
+      },
+      title: { contract: { kind: "string" }, optional: true },
+    },
+  },
+  updateStickyNoteLayout: {
+    kind: "object",
+    properties: {
+      height: { contract: { kind: "number" }, optional: true },
+      isOpen: {
+        contract: {
+          choices: [
+            { kind: "literal", values: [false] },
+            { kind: "literal", values: [true] },
+          ],
+          kind: "union",
+        },
+        optional: true,
+      },
+      isPinned: {
+        contract: {
+          choices: [
+            { kind: "literal", values: [false] },
+            { kind: "literal", values: [true] },
+          ],
+          kind: "union",
+        },
+        optional: true,
+      },
+      noteId: { contract: { kind: "string" }, optional: false },
+      positionX: { contract: { kind: "number" }, optional: true },
+      positionY: { contract: { kind: "number" }, optional: true },
+      width: { contract: { kind: "number" }, optional: true },
+      zIndex: { contract: { kind: "number" }, optional: true },
+    },
+  },
+  verifySecureShareOtp: {
+    kind: "object",
+    properties: {
+      code: { contract: { kind: "string" }, optional: false },
+      slug: { contract: { kind: "string" }, optional: false },
+    },
+  },
+  voidFinanceTransaction: {
+    kind: "object",
+    properties: {
+      id: { contract: { kind: "string" }, optional: false },
+      reason: { contract: { kind: "string" }, optional: false },
+    },
   },
 };

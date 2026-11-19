@@ -89,8 +89,23 @@ if (process.argv.includes("--install"))
         : 'import { validateContract } from "./input-contract";\n') + contents,
     );
   }
+function canonical(value, property = "") {
+  if (Array.isArray(value)) {
+    const result = value.map((item) => canonical(item));
+    return ["choices", "values"].includes(property)
+      ? result.sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b), "en"))
+      : result;
+  }
+  if (value && typeof value === "object")
+    return Object.fromEntries(
+      Object.keys(value)
+        .sort()
+        .map((key) => [key, canonical(value[key], key)]),
+    );
+  return value;
+}
 const output = await prettier.format(
-  `// Generated from declared server-function input types. Run npm run contracts:generate after changing an input.\nexport const inputContracts = ${JSON.stringify(contracts)};\n`,
+  `// Generated from declared server-function input types. Run npm run contracts:generate after changing an input.\nexport const inputContracts = ${JSON.stringify(canonical(contracts))};\n`,
   { parser: "typescript", printWidth: 100 },
 );
 const destination = "src/lib/input-contracts.generated.ts";

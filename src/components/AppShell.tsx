@@ -206,6 +206,27 @@ export function AppFrame({ children }: { children: ReactNode }) {
     queryFn: () => getPublicBranding(),
     staleTime: 300000,
   });
+  const warmPage = (path: string) => {
+    if (path === "/clients")
+      void import("@/lib/directory.functions").then(({ clientDirectory }) =>
+        qc.prefetchQuery({
+          queryKey: ["clients", "directory", "", 0],
+          queryFn: () => clientDirectory({ data: { search: "", offset: 0 } }),
+        }),
+      );
+    if (path === "/prospects")
+      void import("@/lib/directory.functions").then(({ prospectDirectory }) =>
+        qc.prefetchInfiniteQuery({
+          queryKey: ["prospects", "directory", "", "all", "name_asc"],
+          initialPageParam: 0,
+          queryFn: ({ pageParam }) =>
+            prospectDirectory({
+              data: { search: "", category: "all", sort: "name_asc", offset: pageParam },
+            }),
+          getNextPageParam: (page: { nextOffset: number | null }) => page.nextOffset ?? undefined,
+        }),
+      );
+  };
   const visibleGroups = navGroups
     .map((group) => ({
       ...group,
@@ -268,6 +289,8 @@ export function AppFrame({ children }: { children: ReactNode }) {
                 <Link
                   key={item.to}
                   to={item.to as never}
+                  onMouseEnter={() => warmPage(item.to)}
+                  onFocus={() => warmPage(item.to)}
                   activeOptions={{ exact: item.to === "/" }}
                   className="flex items-center gap-3 rounded-xl px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-accent hover:text-accent-foreground"
                   activeProps={{
