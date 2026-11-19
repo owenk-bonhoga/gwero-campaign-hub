@@ -136,7 +136,7 @@ function StatCard({
   return (
     <Card className="border-slate-200 shadow-sm">
       <CardContent className="flex items-center gap-3 p-3">
-        <span className="grid size-8 place-items-center rounded-lg bg-violet-50 text-violet-700">
+        <span className="grid size-8 place-items-center rounded-lg bg-cyan-50 text-cyan-700">
           <Icon className="size-4" />
         </span>
         <div className="min-w-0">
@@ -282,7 +282,7 @@ function DocumentsPage() {
                     className="grid w-full gap-3 px-4 py-2.5 text-left transition hover:bg-slate-50 md:grid-cols-[minmax(0,2fr)_minmax(140px,.8fr)_minmax(130px,.7fr)_110px_20px] md:items-center"
                   >
                     <span className="flex min-w-0 items-center gap-3">
-                      <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-slate-100 text-violet-700">
+                      <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-slate-100 text-cyan-700">
                         <FileText className="size-4" />
                       </span>
                       <span className="min-w-0">
@@ -717,7 +717,7 @@ function DocumentDetail({
       <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-2xl">
         <SheetHeader className="pr-8">
           <div className="flex items-start gap-3">
-            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-violet-50 text-violet-700">
+            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-cyan-50 text-cyan-700">
               <FileText className="size-4" />
             </span>
             <div className="min-w-0">
@@ -735,10 +735,10 @@ function DocumentDetail({
         {latest ? (
           <a
             href={attachmentUrl(latest.attachmentPath)}
-            className="mt-4 flex items-center justify-between rounded-xl border border-violet-100 bg-violet-50/60 p-3 transition hover:bg-violet-50"
+            className="mt-4 flex items-center justify-between rounded-xl border border-cyan-100 bg-cyan-50/60 p-3 transition hover:bg-cyan-50"
           >
             <span className="flex min-w-0 items-center gap-3">
-              <FileText className="size-5 shrink-0 text-violet-700" />
+              <FileText className="size-5 shrink-0 text-cyan-700" />
               <span className="min-w-0">
                 <span className="block truncate text-sm font-semibold text-slate-900">
                   Open current version
@@ -748,7 +748,7 @@ function DocumentDetail({
                 </span>
               </span>
             </span>
-            <ChevronRight className="size-4 shrink-0 text-violet-500" />
+            <ChevronRight className="size-4 shrink-0 text-cyan-600" />
           </a>
         ) : (
           <div className="mt-5 rounded-xl border border-dashed p-5 text-sm text-muted-foreground">
@@ -944,7 +944,7 @@ function DocumentDetail({
                   className="flex items-start justify-between rounded-xl border p-3 transition hover:bg-slate-50"
                 >
                   <span className="flex min-w-0 gap-3">
-                    <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-violet-50 text-violet-700">
+                    <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-cyan-50 text-cyan-700">
                       <FileText className="size-4" />
                     </span>
                     <span className="min-w-0">

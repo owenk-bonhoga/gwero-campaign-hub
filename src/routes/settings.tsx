@@ -464,7 +464,7 @@ function GeneralTab({
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
     system_name: initial["system_name"] || "Gwero OS",
-    primary_color: initial["primary_color"] || "#5b21b6",
+    primary_color: initial["primary_color"] || "#1c2745",
     accent_color: initial["accent_color"] || "#ede9fe",
     font_family: initial["font_family"] || "Inter",
     logo_url: initial["logo_url"] || "",

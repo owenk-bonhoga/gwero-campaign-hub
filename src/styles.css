@@ -67,17 +67,18 @@
   --font-display: var(--font-display);
   --shadow-card: var(--shadow-card);
   --shadow-raised: var(--shadow-raised);
+  --shadow-panel: var(--shadow-panel);
 }
 
 .gwero-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: #c4b5fd transparent;
+  scrollbar-color: #b9dce2 transparent;
 }
 .gwero-scrollbar::-webkit-scrollbar {
   width: 7px;
 }
 .gwero-scrollbar::-webkit-scrollbar-thumb {
-  background: #c4b5fd;
+  background: #b9dce2;
   border-radius: 999px;
 }
 
@@ -104,47 +105,59 @@
 }
 
 :root {
-  --radius: 0.75rem;
-  --font-display: "Google Sans", "Product Sans", Roboto, system-ui, sans-serif;
-  --font-body: Roboto, "Helvetica Neue", Arial, sans-serif;
-  --background: oklch(0.979 0.002 250);
-  --foreground: oklch(0.27 0.006 270);
+  --radius: 0.625rem;
+  --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  --background: oklch(0.983 0.003 230);
+  --foreground: oklch(0.275 0.046 262);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.27 0.006 270);
+  --card-foreground: oklch(0.275 0.046 262);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.27 0.006 270);
-  --primary: oklch(0.46 0.22 295);
+  --popover-foreground: oklch(0.275 0.046 262);
+  --primary: oklch(0.282 0.052 264);
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.962 0.004 260);
-  --secondary-foreground: oklch(0.36 0.008 265);
-  --muted: oklch(0.968 0.003 260);
-  --muted-foreground: oklch(0.53 0.011 265);
-  --accent: oklch(0.96 0.035 295);
-  --accent-foreground: oklch(0.4 0.2 295);
+  --secondary: oklch(0.966 0.009 222);
+  --secondary-foreground: oklch(0.38 0.04 247);
+  --muted: oklch(0.968 0.005 235);
+  --muted-foreground: oklch(0.56 0.025 245);
+  --accent: oklch(0.958 0.026 207);
+  --accent-foreground: oklch(0.49 0.086 214);
   --destructive: oklch(0.556 0.196 27.2);
   --destructive-foreground: oklch(1 0 0);
-  --success: oklch(0.58 0.13 152);
+  --success: oklch(0.56 0.11 162);
   --success-foreground: oklch(1 0 0);
   --warning: oklch(0.76 0.14 78);
   --warning-foreground: oklch(0.3 0.05 78);
-  --border: oklch(0.902 0.004 260);
-  --input: oklch(0.902 0.004 260);
-  --ring: oklch(0.52 0.2 295);
-  --chart-1: oklch(0.552 0.185 258.4);
-  --chart-2: oklch(0.58 0.13 152);
+  --border: oklch(0.93 0.008 230);
+  --input: oklch(0.91 0.012 225);
+  --ring: oklch(0.715 0.105 208);
+  --chart-1: oklch(0.715 0.105 208);
+  --chart-2: oklch(0.56 0.11 162);
   --chart-3: oklch(0.76 0.14 78);
   --chart-4: oklch(0.556 0.196 27.2);
   --chart-5: oklch(0.6 0.13 300);
   --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.27 0.006 270);
-  --sidebar-primary: oklch(0.46 0.22 295);
+  --sidebar-foreground: oklch(0.38 0.04 247);
+  --sidebar-primary: oklch(0.52 0.095 213);
   --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.96 0.035 295);
-  --sidebar-accent-foreground: oklch(0.4 0.2 295);
-  --sidebar-border: oklch(0.902 0.004 260);
-  --sidebar-ring: oklch(0.552 0.185 258.4);
-  --shadow-card: 0 1px 2px 0 rgb(60 64 67 / 0.3), 0 1px 3px 1px rgb(60 64 67 / 0.15);
-  --shadow-raised: 0 1px 3px 0 rgb(60 64 67 / 0.3), 0 4px 8px 3px rgb(60 64 67 / 0.15);
+  --sidebar-accent: oklch(0.958 0.026 207);
+  --sidebar-accent-foreground: oklch(0.49 0.086 214);
+  --sidebar-border: oklch(0.93 0.008 230);
+  --sidebar-ring: oklch(0.715 0.105 208);
+  --shadow-card: 0 1px 2px oklch(0.25 0.025 250 / 0.025), 0 9px 24px oklch(0.25 0.025 250 / 0.035);
+  --shadow-raised: 0 8px 22px oklch(0.25 0.04 250 / 0.11);
+  --shadow-panel: 0 1px 2px oklch(0.25 0.025 250 / 0.025), 0 9px 24px oklch(0.25 0.025 250 / 0.035);
+
+  /* Brand aliases for application-specific compositions. */
+  --gwero-ink: oklch(0.275 0.046 262);
+  --gwero-navy: oklch(0.282 0.052 264);
+  --gwero-text: oklch(0.36 0.042 250);
+  --gwero-muted: oklch(0.56 0.025 245);
+  --gwero-canvas: oklch(0.983 0.003 230);
+  --gwero-line: oklch(0.93 0.008 230);
+  --gwero-cyan: oklch(0.715 0.105 208);
+  --gwero-teal: oklch(0.52 0.095 213);
+  --gwero-teal-soft: oklch(0.958 0.026 207);
 }
 
 .dark {
@@ -192,6 +205,10 @@
     color: var(--color-foreground);
     font-family: var(--font-body);
     font-variant-numeric: tabular-nums;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
 
   h1,
@@ -199,6 +216,190 @@
   h3,
   h4 {
     font-family: var(--font-display);
-    letter-spacing: -0.01em;
+    color: var(--gwero-ink);
+    letter-spacing: -0.025em;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+
+  ::selection {
+    background: oklch(0.9 0.055 207);
+    color: var(--gwero-ink);
+  }
+
+  :focus-visible {
+    outline-color: var(--gwero-cyan);
+  }
+}
+
+@layer components {
+  .gwero-page {
+    margin-inline: auto;
+    width: 100%;
+    max-width: 1130px;
+    padding: 2.75rem 2.375rem 6rem;
+  }
+
+  .gwero-eyebrow {
+    color: oklch(0.65 0.025 235);
+    font-size: 0.6875rem;
+    font-weight: 750;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .gwero-page-title {
+    color: var(--gwero-ink);
+    font-family: var(--font-display);
+    font-size: clamp(2.125rem, 3.5vw, 3rem);
+    font-weight: 700;
+    letter-spacing: -0.055em;
+    line-height: 1.12;
+  }
+
+  .gwero-page-subtitle {
+    color: oklch(0.58 0.03 245);
+    font-size: 0.9375rem;
+    line-height: 1.6;
+  }
+
+  .gwero-panel {
+    overflow: hidden;
+    border: 1px solid var(--gwero-line);
+    border-radius: 1.125rem;
+    background: var(--card);
+    box-shadow: var(--shadow-panel);
+  }
+
+  .gwero-section-label {
+    color: oklch(0.64 0.025 235);
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .gwero-workspace-link {
+    display: flex;
+    min-height: 45px;
+    align-items: center;
+    gap: 0.8rem;
+    border-radius: 11px;
+    padding: 0.7rem 0.8rem;
+    color: #65758a;
+    font-size: 0.8125rem;
+    font-weight: 560;
+    text-align: left;
+    transition:
+      background-color 160ms ease,
+      color 160ms ease;
+  }
+
+  .gwero-workspace-link:hover {
+    background: #f5f8f9;
+    color: #17243d;
+  }
+
+  .gwero-workspace-link.is-active {
+    background: #eaf7f9;
+    color: #176b7d;
+    font-weight: 680;
+  }
+
+  .gwero-subnav-link {
+    display: flex;
+    min-height: 31px;
+    align-items: center;
+    border-radius: 8px;
+    padding: 0.45rem 0.65rem;
+    color: #7a8c9e;
+    font-size: 0.75rem;
+    transition:
+      background-color 160ms ease,
+      color 160ms ease;
+  }
+
+  .gwero-subnav-link:hover,
+  .gwero-subnav-link.is-active {
+    background: #f0f7f8;
+    color: #16768a;
+  }
+
+  .gwero-subnav-link.is-active {
+    font-weight: 650;
+  }
+
+  .gwero-sidebar-footer {
+    display: flex;
+    min-height: 46px;
+    align-items: center;
+    gap: 0.65rem;
+    border-top: 1px solid var(--gwero-line);
+    padding: 0.8rem 0.75rem 0;
+    color: #647588;
+    font-size: 0.75rem;
+  }
+
+  .gwero-primary-action {
+    display: inline-flex;
+    min-height: 40px;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    border-radius: 10px;
+    background: #1c2745;
+    padding: 0.65rem 1rem;
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 650;
+    box-shadow: 0 5px 11px rgb(28 39 69 / 8%);
+    transition:
+      transform 160ms ease,
+      background-color 160ms ease;
+  }
+
+  .gwero-primary-action:hover {
+    transform: translateY(-1px);
+    background: #253756;
+  }
+
+  .gwero-dashboard-feature {
+    background: linear-gradient(130deg, #fff 15%, #fff 55%, #f0fafa 100%);
+  }
+
+  .gwero-dashboard-feature::after {
+    position: absolute;
+    top: -150px;
+    right: -130px;
+    width: 280px;
+    height: 280px;
+    border: 1px solid rgb(63 182 199 / 10%);
+    border-radius: 999px;
+    box-shadow:
+      0 0 0 50px rgb(107 208 217 / 2.7%),
+      0 0 0 110px rgb(107 208 217 / 2.2%);
+    content: "";
+    pointer-events: none;
+  }
+}
+
+@media (max-width: 1110px) {
+  .gwero-page {
+    padding-inline: 1.75rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .gwero-page {
+    padding: 2rem 1.125rem 4.5rem;
+  }
+
+  .gwero-page-title {
+    font-size: clamp(2rem, 10vw, 2.5rem);
   }
 }

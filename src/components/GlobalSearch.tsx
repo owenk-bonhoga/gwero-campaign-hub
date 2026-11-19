@@ -133,7 +133,7 @@ export function GlobalSearch() {
   };
 
   return (
-    <div ref={rootRef} className="relative min-w-0 max-w-2xl flex-1">
+    <div ref={rootRef} className="relative min-w-0 max-w-[390px] flex-1">
       <Search className="pointer-events-none absolute left-3 top-1/2 z-10 size-4 -translate-y-1/2 text-slate-400" />
       <input
         ref={inputRef}
@@ -142,6 +142,9 @@ export function GlobalSearch() {
         aria-expanded={open}
         aria-controls="global-search-results"
         aria-autocomplete="list"
+        aria-activedescendant={
+          open && displayedResults[activeIndex] ? `global-search-option-${activeIndex}` : undefined
+        }
         value={query}
         onFocus={() => setOpen(true)}
         onChange={(event) => {
@@ -165,8 +168,8 @@ export function GlobalSearch() {
             choose(displayedResults[activeIndex]);
           }
         }}
-        className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-24 text-sm outline-none transition focus:border-violet-300 focus:bg-white focus:ring-4 focus:ring-violet-50"
-        placeholder="Search people, clients, opportunities, documents…"
+        className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-10 text-xs text-[#283850] outline-none transition placeholder:text-[#9baab7] focus:border-[#8dcfd8] focus:ring-4 focus:ring-[#e8f7f9] sm:pr-20 sm:text-sm"
+        placeholder="Search across Gwero OS"
       />
       {query ? (
         <button
@@ -181,7 +184,7 @@ export function GlobalSearch() {
           <X className="size-4" />
         </button>
       ) : (
-        <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-medium text-slate-400 shadow-sm">
+        <kbd className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-medium text-slate-400 shadow-sm sm:block">
           Ctrl K
         </kbd>
       )}
@@ -236,17 +239,18 @@ export function GlobalSearch() {
                     return (
                       <button
                         key={`${result.kind}-${result.id}`}
+                        id={`global-search-option-${index}`}
                         type="button"
                         role="option"
                         aria-selected={index === activeIndex}
                         className={`flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition ${
-                          index === activeIndex ? "bg-violet-50" : "hover:bg-slate-50"
+                          index === activeIndex ? "bg-cyan-50" : "hover:bg-slate-50"
                         }`}
                         onMouseEnter={() => setActiveIndex(index)}
                         onMouseDown={(event) => event.preventDefault()}
                         onClick={() => choose(result)}
                       >
-                        <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl border border-slate-100 bg-white text-violet-600 shadow-sm">
+                        <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl border border-slate-100 bg-white text-cyan-700 shadow-sm">
                           <Icon className="size-4" />
                         </span>
                         <span className="min-w-0 flex-1">

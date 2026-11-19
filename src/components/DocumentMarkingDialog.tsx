@@ -336,7 +336,7 @@ export function DocumentMarkingDialog({
       <DialogContent className="flex h-[96vh] w-[98vw] max-w-[1500px] grid-rows-none flex-col gap-0 overflow-hidden p-0">
         <DialogHeader className="border-b px-5 py-4 pr-14 text-left">
           <DialogTitle className="flex items-center gap-2">
-            <FileSignature className="size-5 text-violet-700" /> Stamp or sign document
+            <FileSignature className="size-5 text-cyan-700" /> Stamp or sign document
           </DialogTitle>
           <DialogDescription className="truncate">
             {source?.name} · place multiple marks on the actual PDF pages, then apply them together
@@ -409,7 +409,7 @@ export function DocumentMarkingDialog({
                           className="block h-auto w-full select-none object-contain"
                           style={{ opacity: placementMark?.type === "stamp" ? 0.86 : 0.96 }}
                         />
-                        <span className="absolute -right-2 -top-2 grid size-5 place-items-center rounded-full bg-violet-700 text-[10px] font-bold text-white shadow">
+                        <span className="absolute -right-2 -top-2 grid size-5 place-items-center rounded-full bg-cyan-700 text-[10px] font-bold text-white shadow">
                           {index + 1}
                         </span>
                       </div>
@@ -417,7 +417,7 @@ export function DocumentMarkingDialog({
                   })}
                   {previewUrl ? (
                     <div
-                      className="pointer-events-none absolute rounded-sm ring-2 ring-violet-500 ring-offset-2"
+                      className="pointer-events-none absolute rounded-sm ring-2 ring-cyan-500 ring-offset-2"
                       style={{
                         left: `${xRatio * 100}%`,
                         top: `${yRatio * 100}%`,
@@ -511,7 +511,7 @@ export function DocumentMarkingDialog({
                       <MousePointer2 className="size-3" /> Move it on the exact page preview
                     </p>
                   </div>
-                  <span className="text-xs font-medium text-violet-700">
+                  <span className="text-xs font-medium text-cyan-700">
                     {Math.round(widthRatio * 100)}% wide
                   </span>
                 </div>
@@ -522,7 +522,7 @@ export function DocumentMarkingDialog({
                       <span>{Math.round(widthRatio * 100)}%</span>
                     </div>
                     <input
-                      className="mt-2 w-full accent-violet-700"
+                      className="mt-2 w-full accent-cyan-700"
                       type="range"
                       min="3"
                       max="65"
@@ -536,7 +536,7 @@ export function DocumentMarkingDialog({
                       <span>{rotation}°</span>
                     </div>
                     <input
-                      className="mt-2 w-full accent-violet-700"
+                      className="mt-2 w-full accent-cyan-700"
                       type="range"
                       min="-25"
                       max="25"
@@ -563,7 +563,7 @@ export function DocumentMarkingDialog({
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label>Queued placements</Label>
-                  <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-700">
+                  <span className="rounded-full bg-cyan-100 px-2 py-0.5 text-xs font-semibold text-cyan-700">
                     {placements.length}
                   </span>
                 </div>
@@ -574,7 +574,7 @@ export function DocumentMarkingDialog({
                       return (
                         <div
                           key={placement.id}
-                          className={`flex items-center gap-3 rounded-xl border p-3 ${editingPlacementId === placement.id ? "border-violet-400 bg-violet-50" : "bg-white"}`}
+                          className={`flex items-center gap-3 rounded-xl border p-3 ${editingPlacementId === placement.id ? "border-cyan-400 bg-cyan-50" : "bg-white"}`}
                         >
                           <span className="grid size-7 shrink-0 place-items-center rounded-full bg-slate-100 text-xs font-bold">
                             {index + 1}

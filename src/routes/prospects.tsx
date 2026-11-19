@@ -594,7 +594,7 @@ function AiSearchDialog({
                         href={url}
                         target="_blank"
                         rel="noreferrer"
-                        className="max-w-xs truncate text-xs text-violet-700 underline"
+                        className="max-w-xs truncate text-xs text-cyan-700 underline"
                       >
                         Source
                       </a>
@@ -965,14 +965,14 @@ function ProspectsPage() {
                               className="size-9 rounded-lg border bg-white object-contain p-1"
                             />
                           ) : (
-                            <span className="grid size-9 place-items-center rounded-lg bg-violet-50 text-xs font-bold text-violet-700">
+                            <span className="grid size-9 place-items-center rounded-lg bg-cyan-50 text-xs font-bold text-cyan-700">
                               {(p.company || "P").charAt(0)}
                             </span>
                           )}
                           <Link
                             to="/prospects/$id"
                             params={{ id: p.id }}
-                            className="min-w-0 break-words text-violet-800 hover:underline"
+                            className="min-w-0 break-words text-cyan-800 hover:underline"
                           >
                             {p.company || "Open prospect"}
                           </Link>

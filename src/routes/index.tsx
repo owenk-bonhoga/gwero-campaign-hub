@@ -2,267 +2,278 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowRight,
+  Bell,
   BriefcaseBusiness,
   Building2,
-  CalendarDays,
-  CircleDollarSign,
+  CheckCircle2,
   ClipboardCheck,
   FileText,
-  FolderKanban,
-  Megaphone,
+  Mail,
   Plus,
-  Send,
   Users,
 } from "lucide-react";
-import { AppShell, money } from "@/components/AppShell";
+import { AppShell } from "@/components/AppShell";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { MetricValue } from "@/components/ui/metric-value";
+import { getAuthStatus } from "@/lib/auth.functions";
 import { getDashboard } from "@/lib/dashboard.functions";
+import { getNotifications } from "@/lib/notifications.functions";
 import { mayAccessPage } from "@/lib/page-access";
 import type { LucideIcon } from "lucide-react";
 
 export const Route = createFileRoute("/")({ component: Dashboard });
-type Metric = {
-  label: string;
-  value: number | null;
-  hint: string;
-  to: string;
-  icon: typeof Users;
-  tone: string;
-};
+
+function dayGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+function shortDate(value: string) {
+  const date = new Date(value);
+  const today = new Date();
+  if (date.toDateString() === today.toDateString()) return "Today";
+  return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" }).format(date);
+}
+
+function fullDate() {
+  return new Intl.DateTimeFormat("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date());
+}
 
 function Dashboard() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["gwero-os-dashboard"],
     queryFn: () => getDashboard(),
   });
-  const openTasks = data?.counts.tasks ?? null;
-  const activeProjects = data?.counts.projects ?? null;
-  const openBids = data?.counts.bids ?? null;
-  const metrics: Metric[] = [
-    {
-      label: "Active clients",
-      value: data?.counts.clients ?? null,
-      hint: "relationships in progress",
-      to: "/clients",
-      icon: Building2,
-      tone: "bg-violet-50 text-violet-700",
-    },
-    {
-      label: "Active projects",
-      value: activeProjects,
-      hint: "delivery workspaces",
-      to: "/projects",
-      icon: FolderKanban,
-      tone: "bg-indigo-50 text-indigo-700",
-    },
-    {
-      label: "Open tasks",
-      value: openTasks,
-      hint: "items needing action",
-      to: "/tasks",
-      icon: ClipboardCheck,
-      tone: "bg-amber-50 text-amber-700",
-    },
-    {
-      label: "Open bids",
-      value: openBids,
-      hint: "opportunities in pipeline",
-      to: "/bids",
-      icon: BriefcaseBusiness,
-      tone: "bg-emerald-50 text-emerald-700",
-    },
+  const { data: auth } = useQuery({ queryKey: ["auth-status"], queryFn: () => getAuthStatus() });
+  const { data: notifications = [] } = useQuery({
+    queryKey: ["notifications"],
+    queryFn: () => getNotifications(),
+  });
+  const firstName = auth?.user?.fullName?.trim().split(/\s+/)[0] || "there";
+  const canOpenBids = mayAccessPage("/bids", data?.permissions || []);
+  const openTasks = data?.counts.tasks ?? 0;
+  const glanceItems: Array<{
+    label: string;
+    value: number | null | undefined;
+    icon: LucideIcon;
+    to: string;
+  }> = [
+    { label: "Clients", value: data?.counts.clients, icon: Building2, to: "/clients" },
+    { label: "Open bids", value: data?.counts.bids, icon: BriefcaseBusiness, to: "/bids" },
+    { label: "My to-dos", value: data?.counts.tasks, icon: CheckCircle2, to: "/tasks" },
   ];
+
   return (
     <AppShell
-      title="Your Gwero workspace"
-      description="Here is what is happening across the business today."
+      title={
+        <>
+          {dayGreeting()}, {firstName}
+          <span className="text-[#40b6c8]">.</span>
+        </>
+      }
+      description="A little clarity for the work ahead."
+      eyebrow={fullDate()}
+      actions={
+        <DropdownMenu>
+          <DropdownMenuTrigger className="gwero-primary-action">
+            <Plus className="size-4" /> Create new
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuLabel>Create in Gwero OS</DropdownMenuLabel>
+            {mayAccessPage("/tasks", data?.permissions || []) ? (
+              <DropdownMenuItem asChild>
+                <Link to="/tasks">Task or activity</Link>
+              </DropdownMenuItem>
+            ) : null}
+            {mayAccessPage("/clients", data?.permissions || []) ? (
+              <DropdownMenuItem asChild>
+                <Link to="/clients">Client</Link>
+              </DropdownMenuItem>
+            ) : null}
+            {mayAccessPage("/bids", data?.permissions || []) ? (
+              <DropdownMenuItem asChild>
+                <Link to="/bids">Bid or tender</Link>
+              </DropdownMenuItem>
+            ) : null}
+            {mayAccessPage("/projects", data?.permissions || []) ? (
+              <DropdownMenuItem asChild>
+                <Link to="/projects">Project</Link>
+              </DropdownMenuItem>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      }
     >
-      <div className="space-y-5">
-        {data?.errors.length ? (
-          <div role="alert" className="rounded-xl border border-amber-200 p-4 text-sm">
-            {data.errors.join(" ")}
-          </div>
-        ) : null}
-        {error ? (
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-            {error.message}
-          </div>
-        ) : null}
-        <section className="relative overflow-hidden rounded-2xl border border-violet-100 bg-gradient-to-r from-[#f8f4ff] via-white to-[#f4edff] p-5 md:p-6">
-          <div className="relative z-10 max-w-2xl">
-            <p className="text-xs font-bold uppercase tracking-[.2em] text-violet-600">
-              Gwero OS · Business operations
+      {data?.errors.length ? (
+        <div role="alert" className="mb-5 rounded-xl border border-amber-200 p-4 text-sm">
+          {data.errors.join(" ")}
+        </div>
+      ) : null}
+      {error ? (
+        <div
+          role="alert"
+          className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+        >
+          {error.message}
+        </div>
+      ) : null}
+
+      <div className="grid gap-5 min-[651px]:grid-cols-[minmax(0,1.55fr)_minmax(250px,1fr)]">
+        <section className="gwero-dashboard-feature gwero-panel relative min-h-[294px] overflow-hidden p-7 md:p-8">
+          <div className="relative z-10">
+            <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.14em] text-[#788b98]">
+              <span className="size-1.5 rounded-full bg-[#40b6c8]" /> A good place to start
             </p>
-            <h2 className="mt-2 text-2xl font-bold tracking-tight text-[#21143f] md:text-3xl">
-              One workspace. Every moving part.
+            <h2 className="mt-8 max-w-md text-[28px] font-semibold leading-[1.16] tracking-[-0.045em] md:text-[33px]">
+              {canOpenBids && Number(data?.counts.bids || 0) > 0
+                ? "Move your next bid forward."
+                : openTasks > 0
+                  ? "Make progress on your open work."
+                  : "Your workspace is clear."}
             </h2>
-            <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600">
-              Move opportunities from sourcing and bids through delivery, people, procurement and
-              finance.
+            <p className="mt-3 max-w-md text-sm leading-6 text-[#697d8f]">
+              {canOpenBids && Number(data?.counts.bids || 0) > 0
+                ? "Review the latest requirements, confirm the important details and keep the opportunity moving."
+                : openTasks > 0
+                  ? "Review the work that needs attention and keep the team moving with a clear next action."
+                  : "Nothing urgent is waiting. This is a good time to plan the work ahead."}
             </p>
           </div>
-          <div className="absolute -right-10 -top-16 size-56 rounded-full bg-violet-200/50" />
-          <div className="absolute right-36 top-14 size-28 rounded-full bg-fuchsia-100/60" />
-        </section>
-        <section>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-lg font-bold">Your workspace today</h2>
-            <span className="text-xs text-muted-foreground">
-              {isLoading ? "Updating…" : "Up to date"}
-            </span>
+          <div className="absolute inset-x-7 bottom-7 z-10 flex items-center justify-between gap-4 md:inset-x-8 md:bottom-8">
+            <div className="flex min-w-0 items-center gap-2 text-[11px] text-[#748b9a]">
+              <span className="rounded-md bg-[#e8f7f9] px-2 py-1.5 font-semibold text-[#127f96]">
+                {canOpenBids && Number(data?.counts.bids || 0) > 0 ? "Bids & tenders" : "Tasks"}
+              </span>
+              <span className="truncate">Your workspace</span>
+            </div>
+            <Link
+              to={canOpenBids && Number(data?.counts.bids || 0) > 0 ? "/bids" : "/tasks"}
+              className="gwero-primary-action shrink-0"
+            >
+              Open {canOpenBids && Number(data?.counts.bids || 0) > 0 ? "bid" : "tasks"}
+              <ArrowRight className="size-4" />
+            </Link>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {metrics
-              .filter((metric) => mayAccessPage(metric.to, data?.permissions || []))
-              .map(({ label, value, hint, to, icon: Icon, tone }) => (
+        </section>
+
+        <section className="gwero-panel p-6 md:p-7">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-[15px] font-semibold">At a glance</h2>
+            <span className="text-[11px] text-[#a1adb8]">Your workspace</span>
+          </div>
+          <div className="mt-5 grid grid-cols-3 gap-3 min-[651px]:block">
+            {glanceItems
+              .filter((item) => mayAccessPage(item.to, data?.permissions || []))
+              .map(({ label, value, icon: Icon, to }) => (
                 <Link
                   key={label}
                   to={to as never}
-                  className="group min-w-0 rounded-xl border bg-card p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                  className="flex min-w-0 flex-col gap-2 border-b py-4 last:border-0 lg:flex-row lg:items-center"
                 >
-                  <div className="flex items-start justify-between">
-                    <span className={`grid size-9 place-items-center rounded-xl ${tone}`}>
-                      <Icon className="size-5" />
-                    </span>
-                    <ArrowRight className="size-4 text-slate-300 transition group-hover:translate-x-1 group-hover:text-violet-600" />
-                  </div>
+                  <span className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-[#eaf8fa] text-[#168a9c]">
+                    <Icon className="size-4" />
+                  </span>
+                  <span className="min-w-0 flex-1 text-xs text-[#728295]">{label}</span>
                   <MetricValue
-                    className="mt-3 text-[#21143f]"
-                    value={isLoading ? "…" : (value ?? "Unavailable")}
-                    maxSize={1.75}
+                    className="text-left text-[#26354d] lg:text-right"
+                    value={isLoading ? "…" : (value ?? "—")}
+                    maxSize={1.45}
                   />
-                  <p className="mt-1 text-sm font-semibold">{label}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
                 </Link>
               ))}
           </div>
         </section>
-        <section className="grid gap-4 xl:grid-cols-[1.45fr_1fr]">
-          <div className="rounded-2xl border bg-card shadow-sm">
-            <div className="flex items-center justify-between border-b p-4">
-              <div>
-                <h2 className="font-bold">Needs your attention</h2>
-                <p className="mt-1 text-xs text-muted-foreground">Open work across teams</p>
-              </div>
-              <Link to="/tasks" className="text-sm font-semibold text-violet-700">
-                View all
-              </Link>
-            </div>
-            <div className="divide-y">
-              {(data?.tasks.slice(0, 6) ?? []).map((task) => (
-                <Link
-                  to="/tasks"
-                  key={task.id}
-                  className="flex items-center gap-4 p-4 transition hover:bg-violet-50/40"
-                >
-                  <span className="grid size-10 place-items-center rounded-xl bg-violet-50 text-violet-700">
-                    <ClipboardCheck className="size-5" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold">{task.title}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {task.assignee || "Unassigned"} · {task.entity_type}
-                    </p>
-                  </div>
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs capitalize text-slate-600">
-                    {task.status.replace("_", " ")}
-                  </span>
-                </Link>
-              ))}
-              {!isLoading && !data?.tasks.length ? (
-                <div className="p-6 text-center text-sm text-muted-foreground">
-                  No open work yet. Create a task to get the team moving.
-                </div>
-              ) : null}
-            </div>
+
+        <section className="gwero-panel min-h-[276px] p-6 md:p-7">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold">After that</h2>
+            <Link to="/tasks" className="text-xs font-semibold text-[#168196]">
+              All tasks <ArrowRight className="ml-1 inline size-3" />
+            </Link>
           </div>
-          <div className="space-y-4">
-            <div className="rounded-xl border bg-card p-4 shadow-sm">
-              <h2 className="font-bold">Quick actions</h2>
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                {(
-                  [
-                    ["/quotations", "Quotation", FileText],
-                    ["/projects", "Project", FolderKanban],
-                    ["/tasks", "Task", ClipboardCheck],
-                    ["/campaigns", "Campaign", Send],
-                  ] as Array<[string, string, LucideIcon]>
-                )
-                  .filter(([to]) => mayAccessPage(to, data?.permissions || []))
-                  .map(([to, label, Icon]) => (
-                    <Link
-                      key={String(to)}
-                      to={to as never}
-                      className="flex min-h-20 flex-col items-center justify-center gap-2 rounded-lg border bg-[#fbf9ff] text-sm font-semibold text-[#321568] transition hover:border-violet-300 hover:bg-violet-50"
-                    >
-                      <Icon className="size-5" />
-                      <span>
-                        <Plus className="mr-1 inline size-3" />
-                        {label as string}
-                      </span>
-                    </Link>
-                  ))}
-              </div>
-            </div>
-            {data?.permissions.includes("finance.manage") ? (
-              <div className="rounded-xl border bg-card p-4 shadow-sm">
-                <h2 className="font-bold">Financial snapshot</h2>
-                <div className="mt-4 flex items-center gap-4">
-                  <span className="grid size-12 place-items-center rounded-2xl bg-emerald-50 text-emerald-700">
-                    <CircleDollarSign className="size-6" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <MetricValue
-                      value={
-                        data?.receivables.length
-                          ? data.receivables
-                              .map((row) => money(row.amount, row.currency))
-                              .join(" · ")
-                          : "No outstanding receivables"
-                      }
-                      maxSize={1.5}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Outstanding posted revenue by currency
-                    </p>
-                  </div>
-                </div>
-                <Link
-                  to="/finance"
-                  className="mt-4 flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3 text-sm font-semibold"
-                >
-                  Open finance <ArrowRight className="size-4" />
-                </Link>
+          <div className="mt-5 divide-y">
+            {(data?.tasks.slice(0, 3) ?? []).map((task) => (
+              <Link key={task.id} to="/tasks" className="flex min-h-[58px] items-center gap-3">
+                <span className="size-[18px] shrink-0 rounded-md border border-[#d0dee3]" />
+                <span className="min-w-0 flex-1 truncate text-[13px] text-[#324158]">
+                  {task.title}
+                </span>
+                <span className="rounded-md bg-[#f6f8f9] px-2 py-1 text-[10px] capitalize text-[#83919b]">
+                  {task.status.replaceAll("_", " ")}
+                </span>
+              </Link>
+            ))}
+            {!isLoading && !data?.tasks.length ? (
+              <div className="py-10 text-center text-sm text-muted-foreground">
+                No open work needs attention.
               </div>
             ) : null}
           </div>
         </section>
-        <section>
-          <h2 className="mb-3 text-lg font-bold">Explore Gwero OS</h2>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-            {(
-              [
-                ["/marketing", "Marketing", Megaphone],
-                ["/recruitment", "Recruitment", Users],
-                ["/hr", "HR", Users],
-                ["/payroll", "Payroll", CalendarDays],
-                ["/procurement", "Procurement", BriefcaseBusiness],
-                ["/documents", "Documents", FileText],
-              ] as Array<[string, string, LucideIcon]>
-            )
-              .filter(([to]) => mayAccessPage(to, data?.permissions || []))
-              .map(([to, label, Icon]) => (
-                <Link
-                  key={String(to)}
-                  to={to as never}
-                  className="flex items-center gap-3 rounded-xl border bg-card p-4 text-sm font-semibold transition hover:border-violet-300 hover:text-violet-700"
-                >
-                  <Icon className="size-5 text-violet-600" />
-                  {label as string}
-                </Link>
-              ))}
+
+        <section className="gwero-panel min-h-[276px] p-6 md:p-7">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold">Latest updates</h2>
+            <Link to="/inbox" className="text-xs font-semibold text-[#168196]">
+              Open inbox <ArrowRight className="ml-1 inline size-3" />
+            </Link>
+          </div>
+          <div className="mt-4 divide-y">
+            {notifications.slice(0, 3).map((notification) => (
+              <a
+                key={notification.id}
+                href={notification.action_url || undefined}
+                className="flex items-start gap-3 py-3"
+              >
+                <span className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-[#f3f8fa] text-[#7d95a5]">
+                  {notification.notification_type.includes("mail") ? (
+                    <Mail className="size-4" />
+                  ) : notification.notification_type.includes("document") ? (
+                    <FileText className="size-4" />
+                  ) : (
+                    <Bell className="size-4" />
+                  )}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <strong className="block truncate text-xs font-semibold text-[#344358]">
+                    {notification.title}
+                  </strong>
+                  <span className="mt-1 block line-clamp-1 text-xs text-[#758898]">
+                    {notification.body}
+                  </span>
+                </span>
+                <time className="shrink-0 pt-0.5 text-[10px] text-[#b2bdc6]">
+                  {shortDate(notification.created_at)}
+                </time>
+              </a>
+            ))}
+            {!notifications.length ? (
+              <div className="py-10 text-center text-sm text-muted-foreground">
+                You are all caught up.
+              </div>
+            ) : null}
           </div>
         </section>
+      </div>
+
+      <div className="mt-6 flex flex-wrap justify-between gap-2 px-1 text-[11px] text-[#abb7c1]">
+        <span>GWERO OS · A simpler view of the work that matters</span>
+        <span className="flex items-center gap-1.5">
+          <ClipboardCheck className="size-3.5 text-[#83bfbd]" /> Live workspace data
+        </span>
       </div>
     </AppShell>
   );
