@@ -223,7 +223,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
             prospectDirectory({
               data: { search: "", category: "all", sort: "name_asc", offset: pageParam },
             }),
-          getNextPageParam: (page) => page.nextOffset ?? undefined,
+          getNextPageParam: (page: { nextOffset: number | null }) => page.nextOffset ?? undefined,
         }),
       );
   };
