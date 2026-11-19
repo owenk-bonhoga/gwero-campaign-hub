@@ -235,8 +235,14 @@ test("query and pool acquisition deadlines release resources", { skip: !enabled 
   });
   const bounded = withDatabaseDeadlines(raw, 80);
   try {
-    await assert.rejects(() => bounded.query("SELECT SLEEP(1)"));
-    await new Promise((r) => setTimeout(r, 1100));
+    const started = Date.now();
+    await assert.rejects(() => bounded.query("SELECT SLEEP(5)"));
+    const [immediate] = await bounded.query("SELECT 1 AS ok");
+    assert.equal((immediate as Array<{ ok: number }>)[0]!.ok, 1);
+    assert.ok(
+      Date.now() - started < 1000,
+      "Timed-out connections must not hold subsequent requests behind the abandoned query",
+    );
     const lease = await raw.getConnection();
     await assert.rejects(() => bounded.getConnection(), /timed out/);
     lease.release();
