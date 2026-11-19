@@ -1,3 +1,4 @@
+import { safeHeader } from "./mail-safety";
 /** Tiny IMAP reader: fetches recent message headers from INBOX. Server-only. */
 import { connectTls, type LineSocket } from "./socket.server";
 import { simpleParser } from "mailparser";
@@ -48,7 +49,7 @@ export async function imapFetchRecent(config: ImapConfig, sinceDays = 14): Promi
     await socket.readUntil((acc) => /^\* OK/m.test(acc));
     await run(
       socket,
-      `LOGIN "${config.username.replace(/"/g, '\\"')}" "${config.password.replace(/"/g, '\\"')}"`,
+      `LOGIN "${safeHeader(config.username).replace(/\\/g, "\\\\").replace(/"/g, '\\"')}" "${safeHeader(config.password).replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`,
     );
     await run(socket, "SELECT INBOX");
 
@@ -115,7 +116,7 @@ export async function imapVerify(config: ImapConfig): Promise<void> {
     await socket.readUntil((acc) => /^\* OK/m.test(acc));
     await run(
       socket,
-      `LOGIN "${config.username.replace(/"/g, '\\"')}" "${config.password.replace(/"/g, '\\"')}"`,
+      `LOGIN "${safeHeader(config.username).replace(/\\/g, "\\\\").replace(/"/g, '\\"')}" "${safeHeader(config.password).replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`,
     );
     await run(socket, "LOGOUT").catch(() => undefined);
   } finally {

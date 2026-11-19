@@ -1,3 +1,5 @@
+import { deadlineFetch } from "./request-deadline";
+import { appOrigin } from "./app-origin";
 import { requireUser } from "./auth.server";
 import { randomBytes, randomUUID } from "node:crypto";
 
@@ -40,7 +42,7 @@ async function env(provider: OAuthProvider) {
 }
 export async function beginMailOAuth(provider: OAuthProvider, request: Request) {
   await requireUser();
-  const origin = new URL(request.url).origin;
+  const origin = appOrigin(request.url);
   let item: Awaited<ReturnType<typeof env>>;
   try {
     item = await env(provider);
@@ -73,7 +75,7 @@ export async function finishMailOAuth(provider: OAuthProvider, request: Request)
   const user = await requireUser();
   const item = await env(provider);
   const url = new URL(request.url);
-  const origin = url.origin;
+  const origin = appOrigin(request.url);
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
   const cookie = request.headers
@@ -88,7 +90,7 @@ export async function finishMailOAuth(provider: OAuthProvider, request: Request)
     redirect_uri: `${origin}/api/oauth/${provider}/callback`,
     grant_type: "authorization_code",
   });
-  const tokenResponse = await fetch(item.token, {
+  const tokenResponse = await deadlineFetch(item.token, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body,
@@ -99,7 +101,7 @@ export async function finishMailOAuth(provider: OAuthProvider, request: Request)
     refresh_token?: string;
     expires_in?: number;
   };
-  const profileResponse = await fetch(item.profile, {
+  const profileResponse = await deadlineFetch(item.profile, {
     headers: { authorization: `Bearer ${tokens.access_token}` },
   });
   if (!profileResponse.ok) return redirectResult(origin, "error", "Could not read account profile");

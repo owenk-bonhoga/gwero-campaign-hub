@@ -1,3 +1,4 @@
+import { validateContract } from "./input-contract";
 import { randomUUID } from "node:crypto";
 import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "./auth.middleware";
@@ -47,7 +48,9 @@ function clean(value: string) {
 
 export const listOrganizationLocations = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .validator((data: { entityType: LocationOwnerType; entityId: string }) => data)
+  .validator((data: { entityType: LocationOwnerType; entityId: string }) =>
+    validateContract(data, "listOrganizationLocations"),
+  )
   .handler(async ({ data, context }) => {
     requireLocationPermission(context.user, data.entityType, false);
     const { getPool } = await import("./db.server");
@@ -62,7 +65,9 @@ export const listOrganizationLocations = createServerFn({ method: "GET" })
 
 export const saveOrganizationLocation = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((data: LocationInput & { locationId?: string }) => data)
+  .validator((data: LocationInput & { locationId?: string }) =>
+    validateContract(data, "saveOrganizationLocation"),
+  )
   .handler(async ({ data, context }) => {
     requireLocationPermission(context.user, data.entityType, true);
     if (
@@ -143,8 +148,8 @@ export const saveOrganizationLocation = createServerFn({ method: "POST" })
 
 export const deleteOrganizationLocation = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator(
-    (data: { entityType: LocationOwnerType; entityId: string; locationId: string }) => data,
+  .validator((data: { entityType: LocationOwnerType; entityId: string; locationId: string }) =>
+    validateContract(data, "deleteOrganizationLocation"),
   )
   .handler(async ({ data, context }) => {
     requireLocationPermission(context.user, data.entityType, true);

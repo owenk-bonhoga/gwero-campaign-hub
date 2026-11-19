@@ -26,7 +26,7 @@ function isAdmin(user: AuthUser) {
   return user.roleName === "Administrator";
 }
 
-async function requireDocumentLevel(
+export async function requireDocumentLevel(
   documentId: string,
   needed: DocumentAccessLevel,
   user: AuthUser,

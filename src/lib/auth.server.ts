@@ -94,10 +94,7 @@ export async function issueSession(userId: string) {
   const token = randomBytes(32).toString("base64url");
   const expires = new Date(Date.now() + SESSION_DAYS * 86_400_000);
   const db = getPool();
-  await db.execute(
-    "DELETE FROM auth_sessions WHERE user_id = ? OR expires_at <= CURRENT_TIMESTAMP(3)",
-    [userId],
-  );
+  await db.execute("DELETE FROM auth_sessions WHERE expires_at <= CURRENT_TIMESTAMP(3)");
   await db.execute(
     "INSERT INTO auth_sessions (id, user_id, token_hash, expires_at) VALUES (?, ?, ?, ?)",
     [randomUUID(), userId, tokenHash(token), expires],

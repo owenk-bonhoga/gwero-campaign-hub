@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import "./lib/error-capture";
 
-import { consumeLastCapturedError } from "./lib/error-capture";
+import { withRequestErrors, consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 
 declare const __RELEASE_COMMIT__: string;
@@ -79,18 +79,20 @@ async function secureResponse(response: Response): Promise<Response> {
 
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
-    try {
-      const handler = await getServerEntry();
-      const response = await handler.fetch(request, env, ctx);
-      return await secureResponse(await normalizeCatastrophicSsrResponse(response));
-    } catch (error) {
-      console.error(error);
-      return await secureResponse(
-        new Response(renderErrorPage(), {
-          status: 500,
-          headers: { "content-type": "text/html; charset=utf-8" },
-        }),
-      );
-    }
+    return withRequestErrors(async () => {
+      try {
+        const handler = await getServerEntry();
+        const response = await handler.fetch(request, env, ctx);
+        return await secureResponse(await normalizeCatastrophicSsrResponse(response));
+      } catch (error) {
+        console.error(error);
+        return await secureResponse(
+          new Response(renderErrorPage(), {
+            status: 500,
+            headers: { "content-type": "text/html; charset=utf-8" },
+          }),
+        );
+      }
+    });
   },
 };

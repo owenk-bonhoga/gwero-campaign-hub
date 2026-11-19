@@ -1,3 +1,4 @@
+import { validateContract } from "./input-contract";
 import { createServerFn } from "@tanstack/react-start";
 import { permissionMiddleware } from "./auth.middleware";
 import { copyProspectLocationsToClientSql } from "./prospect-conversion.sql";
@@ -42,7 +43,7 @@ export type ProspectCompanyInput = {
 
 export const createProspectCompany = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("prospects.manage")])
-  .validator((data: ProspectCompanyInput) => data)
+  .validator((data: ProspectCompanyInput) => validateContract(data, "createProspectCompany"))
   .handler(async ({ data }) => {
     const company = canonicalCompany(data.company);
     if (!company) throw new Error("Company or organisation name is required.");
@@ -98,7 +99,9 @@ export const createProspectCompany = createServerFn({ method: "POST" })
 
 export const deleteProspectContact = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("prospects.manage")])
-  .validator((data: { prospectId: string; contactId: string }) => data)
+  .validator((data: { prospectId: string; contactId: string }) =>
+    validateContract(data, "deleteProspectContact"),
+  )
   .handler(async ({ data }) => {
     const { getPool } = await import("./db.server");
     const connection = await getPool().getConnection();
@@ -130,7 +133,9 @@ export const deleteProspectContact = createServerFn({ method: "POST" })
 
 export const importProspectContacts = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("prospects.manage")])
-  .validator((data: { rows: ContactImportRow[]; sourceFile?: string }) => data)
+  .validator((data: { rows: ContactImportRow[]; sourceFile?: string }) =>
+    validateContract(data, "importProspectContacts"),
+  )
   .handler(async ({ data }) => {
     if (!data.rows.length || data.rows.length > 2_000)
       throw new Error("Import between 1 and 2,000 contacts at a time.");
@@ -267,7 +272,7 @@ export const importProspectContacts = createServerFn({ method: "POST" })
 
 export const convertProspectToClient = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("prospects.convert")])
-  .validator((data: { prospectId: string }) => data)
+  .validator((data: { prospectId: string }) => validateContract(data, "convertProspectToClient"))
   .handler(async ({ data }) => {
     const { getPool } = await import("./db.server");
     const connection = await getPool().getConnection();

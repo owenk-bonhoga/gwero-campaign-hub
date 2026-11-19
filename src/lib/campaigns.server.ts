@@ -1,4 +1,5 @@
-import { randomUUID } from "node:crypto";
+import { decryptMailboxRow } from "./secret-crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { readAttachment } from "./attachments.server";
 import { gatewayFetch } from "./crm.functions";
 import { getPool } from "./db.server";
@@ -18,6 +19,8 @@ type CampaignRow = {
   track_clicks: number;
   daily_limit: number;
   stop_on_reply: number;
+  approval_required: number;
+  approved_at: string | null;
 };
 
 type StepRow = {
@@ -48,6 +51,7 @@ type RecipientRow = {
   phone: string | null;
   company: string | null;
   prospect_email: string;
+  message_id: string | null;
   extra: string | Record<string, unknown>;
 };
 
@@ -183,47 +187,69 @@ async function deliverEmail(
     messageId,
   });
 
-  if (mailbox.provider === "smtp") {
-    await smtpSend(
-      {
-        host: mailbox.smtp_host || "",
-        port: mailbox.smtp_port || 587,
-        secure: Boolean(mailbox.smtp_secure),
-        username: mailbox.smtp_username || "",
-        password: secret?.smtp_password || "",
-      },
-      { from: mailbox.from_email, envelopeFrom: mailbox.from_email, to: email, cc, bcc, raw },
-    );
-  } else if (mailbox.provider === "gmail" || mailbox.provider === "google") {
-    if (!secret) throw new Error("Sending-account credentials are missing.");
-    const response = await gatewayFetch("gmail", secret, "/gmail/v1/users/me/messages/send", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ raw: Buffer.from(raw).toString("base64url") }),
-    });
-    if (!response.ok) throw new Error(await response.text());
-  } else {
-    if (!secret) throw new Error("Sending-account credentials are missing.");
-    const response = await gatewayFetch("outlook", secret, "/me/sendMail", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        message: {
-          subject,
-          body: { contentType: "HTML", content: html },
-          toRecipients: [{ emailAddress: { address: email } }],
-          ccRecipients: cc.map((address) => ({ emailAddress: { address } })),
-          bccRecipients: bcc.map((address) => ({ emailAddress: { address } })),
-          attachments: attachments.map((attachment) => ({
-            "@odata.type": "#microsoft.graph.fileAttachment",
-            name: attachment.filename,
-            contentType: attachment.contentType,
-            contentBytes: Buffer.from(attachment.content).toString("base64"),
-          })),
+  await getPool().execute(
+    "UPDATE campaign_recipients SET dispatch_started_at=CURRENT_TIMESTAMP(3), message_id=? WHERE id=? AND status='processing'",
+    [messageId, recipient.id],
+  );
+  try {
+    if (mailbox.provider === "smtp") {
+      await smtpSend(
+        {
+          host: mailbox.smtp_host || "",
+          port: mailbox.smtp_port || 587,
+          secure: Boolean(mailbox.smtp_secure),
+          username: mailbox.smtp_username || "",
+          password: secret?.smtp_password || "",
         },
-      }),
-    });
-    if (!response.ok) throw new Error(await response.text());
+        { from: mailbox.from_email, envelopeFrom: mailbox.from_email, to: email, cc, bcc, raw },
+      );
+    } else if (mailbox.provider === "gmail" || mailbox.provider === "google") {
+      if (!secret) throw new Error("Sending-account credentials are missing.");
+      const response = await gatewayFetch("gmail", secret, "/gmail/v1/users/me/messages/send", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ raw: Buffer.from(raw).toString("base64url") }),
+      });
+      if (!response.ok)
+        throw Object.assign(new Error(await response.text()), { definitiveRejection: true });
+    } else {
+      if (!secret) throw new Error("Sending-account credentials are missing.");
+      const response = await gatewayFetch("outlook", secret, "/me/sendMail", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          message: {
+            subject,
+            body: { contentType: "HTML", content: html },
+            toRecipients: [{ emailAddress: { address: email } }],
+            ccRecipients: cc.map((address) => ({ emailAddress: { address } })),
+            bccRecipients: bcc.map((address) => ({ emailAddress: { address } })),
+            attachments: attachments.map((attachment) => ({
+              "@odata.type": "#microsoft.graph.fileAttachment",
+              name: attachment.filename,
+              contentType: attachment.contentType,
+              contentBytes: Buffer.from(attachment.content).toString("base64"),
+            })),
+          },
+        }),
+      });
+      if (!response.ok)
+        throw Object.assign(new Error(await response.text()), { definitiveRejection: true });
+    }
+  } catch (error) {
+    const failure = error as Error & {
+      code?: string;
+      command?: string;
+      definitiveRejection?: boolean;
+      deliveryUncertain?: boolean;
+    };
+    failure.deliveryUncertain =
+      !failure.definitiveRejection &&
+      !["EAUTH", "ECONNECTION", "EDNS", "ETLS"].includes(failure.code || "") &&
+      failure.command !== "CONN" &&
+      !["MAIL FROM", "RCPT TO", "AUTH PLAIN", "AUTH LOGIN"].includes(failure.command || "") &&
+      !["EENVELOPE", "EMESSAGE"].includes(failure.code || "");
+    throw failure;
   }
   return messageId;
 }
@@ -270,15 +296,21 @@ async function processCampaign(campaign: CampaignRow, remaining: number) {
       [campaign.id],
     ),
     db.execute(
-      `SELECT COUNT(*) total FROM campaign_events
-        WHERE campaign_id = ? AND event_type = 'email.sent' AND created_at >= CURRENT_DATE()`,
-      [campaign.id],
+      `SELECT (SELECT COUNT(*) FROM campaign_events WHERE campaign_id=? AND event_type='email.sent' AND created_at>=CURRENT_DATE()) + (SELECT COUNT(*) FROM campaign_recipients WHERE campaign_id=? AND status='uncertain' AND dispatch_started_at>=CURRENT_DATE()) total`,
+      [campaign.id, campaign.id],
     ),
   ]);
   const mailbox = (mailboxRows[0] as MailboxRow[])[0];
-  const secret = (secretRows[0] as SecretRow[])[0];
+  const storedSecret = (secretRows[0] as SecretRow[])[0];
+  const secret = storedSecret ? decryptMailboxRow(storedSecret) : undefined;
   const steps = stepRows[0] as StepRow[];
   const sentToday = Number((sentTodayRows[0] as Array<{ total: number }>)[0]?.total || 0);
+  if (campaign.approval_required && !campaign.approved_at) return { processed: 0, failed: 0 };
+  const [access] = await db.execute(
+    "SELECT m.id FROM mailboxes m LEFT JOIN mailbox_access a ON a.mailbox_id=m.id AND a.user_id=? JOIN system_users u ON u.id=? AND u.status='active' JOIN role_permissions rp ON rp.role_id=u.role_id JOIN permissions p ON p.id=rp.permission_id AND p.permission_key='campaigns.manage' WHERE m.id=? AND (m.created_by=? OR a.can_send=TRUE) LIMIT 1",
+    [campaign.owner_id, campaign.owner_id, campaign.mailbox_id, campaign.owner_id],
+  );
+  if (!(access as unknown[]).length) return { processed: 0, failed: 0 };
   const allowance = Math.max(0, Math.min(remaining, campaign.daily_limit - sentToday));
   if (!mailbox || !steps.length || allowance <= 0) return { processed: 0, failed: 0 };
 
@@ -297,7 +329,9 @@ async function processCampaign(campaign: CampaignRow, remaining: number) {
   );
   let processed = 0;
   let failed = 0;
+  const deadline = Date.now() + 25_000;
   for (const recipient of recipientRows as RecipientRow[]) {
+    if (Date.now() > deadline) break;
     if (campaign.stop_on_reply && recipient.replied_at) {
       await db.execute(
         `UPDATE campaign_recipients SET status = 'stopped', stopped_reason = 'Replied'
@@ -307,8 +341,8 @@ async function processCampaign(campaign: CampaignRow, remaining: number) {
       continue;
     }
     const [claim] = await db.execute(
-      `UPDATE campaign_recipients SET status = 'processing'
-        WHERE id = ? AND status IN ('pending','active','failed')`,
+      `UPDATE campaign_recipients SET status = 'processing', claimed_at = CURRENT_TIMESTAMP(3), dispatch_started_at = NULL
+        WHERE id = ? AND status IN ('pending','active','failed') AND EXISTS (SELECT 1 FROM campaigns c WHERE c.id=campaign_recipients.campaign_id AND c.status='running' AND (c.approval_required=FALSE OR c.approved_at IS NOT NULL))`,
       [recipient.id],
     );
     if (!(claim as { affectedRows: number }).affectedRows) continue;
@@ -320,16 +354,25 @@ async function processCampaign(campaign: CampaignRow, remaining: number) {
       );
       continue;
     }
+    let accepted = false;
     try {
       if (step.step_type === "task") {
         await db.execute(
-          `INSERT INTO activities (id, entity_type, entity_id, activity_type, body)
+          `INSERT IGNORE INTO activities (id, entity_type, entity_id, activity_type, body)
            VALUES (?, 'prospect', ?, 'campaign_task', ?)`,
-          [randomUUID(), recipient.prospect_id, step.task_instructions || step.name],
+          [
+            createHash("sha256")
+              .update(`task:${recipient.id}:${step.id}`)
+              .digest("hex")
+              .slice(0, 36),
+            recipient.prospect_id,
+            step.task_instructions || step.name,
+          ],
         );
         await completeStep(campaign, recipient, step, steps);
       } else {
         const messageId = await deliverEmail(campaign, mailbox, secret, step, recipient);
+        accepted = true;
         await completeStep(campaign, recipient, step, steps, messageId);
         await db.execute(
           `UPDATE prospects SET status = IF(status = 'new', 'contacted', status),
@@ -341,13 +384,15 @@ async function processCampaign(campaign: CampaignRow, remaining: number) {
     } catch (error) {
       failed += 1;
       const attempts = Number(recipient.attempt_count || 0) + 1;
+      const uncertain =
+        accepted || Boolean((error as { deliveryUncertain?: boolean }).deliveryUncertain);
       await db.execute(
         `UPDATE campaign_recipients SET status = ?, attempt_count = ?, error = ?,
           next_action_at = IF(? < 3, TIMESTAMPADD(MINUTE, 15, CURRENT_TIMESTAMP(3)), NULL),
           stopped_reason = IF(? >= 3, 'Delivery failed after 3 attempts', stopped_reason),
           last_activity_at = CURRENT_TIMESTAMP(3) WHERE id = ?`,
         [
-          attempts >= 3 ? "stopped" : "failed",
+          uncertain ? "uncertain" : attempts >= 3 ? "stopped" : "failed",
           attempts,
           String((error as Error).message).slice(0, 500),
           attempts,
@@ -365,7 +410,7 @@ async function processCampaign(campaign: CampaignRow, remaining: number) {
 
   const [outstandingRows] = await db.execute(
     `SELECT COUNT(*) total FROM campaign_recipients
-      WHERE campaign_id = ? AND status IN ('pending','active','processing')`,
+      WHERE campaign_id = ? AND (status IN ('pending','active','processing','uncertain') OR (status='failed' AND attempt_count<3))`,
     [campaign.id],
   );
   if (!Number((outstandingRows as Array<{ total: number }>)[0]?.total)) {
@@ -383,24 +428,100 @@ export async function processCampaignQueue({
   maxActions = 25,
 }: { campaignId?: string; maxActions?: number } = {}) {
   const db = getPool();
-  await db.execute(
-    `UPDATE campaigns SET status = 'running', sent_at = COALESCE(sent_at, CURRENT_TIMESTAMP(3))
-      WHERE status = 'scheduled' AND scheduled_at <= CURRENT_TIMESTAMP(3)`,
-  );
-  const params: string[] = [];
-  const campaignFilter = campaignId ? " AND id = ?" : "";
-  if (campaignId) params.push(campaignId);
-  const [campaignRows] = await db.execute(
-    `SELECT * FROM campaigns WHERE status = 'running'${campaignFilter} ORDER BY created_at ASC`,
-    params,
-  );
-  let processed = 0;
-  let failed = 0;
-  for (const campaign of campaignRows as CampaignRow[]) {
-    const result = await processCampaign(campaign, Math.max(0, maxActions - processed));
-    processed += result.processed;
-    failed += result.failed;
-    if (processed >= maxActions) break;
+  const lease = await db.getConnection();
+  const lockName = `gwero:campaign:${process.env["DB_NAME"] || "default"}`.slice(0, 64);
+  try {
+    const [lockRows] = await lease.query("SELECT GET_LOCK(?,0) AS acquired", [lockName]);
+    if (!(lockRows as Array<{ acquired: number }>)[0]?.acquired) {
+      return { campaigns: 0, processed: 0, failed: 0 };
+    }
+    const deadline = Date.now() + 25000;
+    await db.execute(
+      "UPDATE campaign_recipients SET status=IF(dispatch_started_at IS NULL,'failed','uncertain'), error='Worker interrupted. Check delivery before retrying.', next_action_at=CURRENT_TIMESTAMP(3) WHERE status='processing' AND (claimed_at IS NULL OR claimed_at<DATE_SUB(CURRENT_TIMESTAMP(3),INTERVAL 5 MINUTE))",
+    );
+    await db.execute(
+      `UPDATE campaigns SET status = 'running', sent_at = COALESCE(sent_at, CURRENT_TIMESTAMP(3))
+      WHERE status = 'scheduled' AND scheduled_at <= CURRENT_TIMESTAMP(3) AND (approval_required=FALSE OR approved_at IS NOT NULL)`,
+    );
+    const params: string[] = [];
+    const campaignFilter = campaignId ? " AND id = ?" : "";
+    if (campaignId) params.push(campaignId);
+    const [campaignRows] = await db.execute(
+      `SELECT * FROM campaigns WHERE status = 'running'${campaignFilter} ORDER BY created_at ASC`,
+      params,
+    );
+    let processed = 0;
+    let failed = 0;
+    for (const campaign of campaignRows as CampaignRow[]) {
+      const result = await processCampaign(campaign, Math.max(0, maxActions - processed));
+      processed += result.processed;
+      failed += result.failed;
+      if (processed + failed >= maxActions || Date.now() >= deadline) break;
+    }
+    return { campaigns: (campaignRows as CampaignRow[]).length, processed, failed };
+  } finally {
+    try {
+      await lease.query("SELECT RELEASE_LOCK(?)", [lockName]);
+    } finally {
+      lease.release();
+    }
   }
-  return { campaigns: (campaignRows as CampaignRow[]).length, processed, failed };
+}
+
+export async function resolveUncertainDelivery(
+  input: { campaignId: string; recipientId: string; outcome: "delivered" | "not_delivered" },
+  userId: string,
+) {
+  const db = getPool();
+  const lease = await db.getConnection();
+  const lockName = `gwero:campaign:${process.env["DB_NAME"] || "default"}`.slice(0, 64);
+  try {
+    const [lock] = await lease.query("SELECT GET_LOCK(?,0) AS acquired", [lockName]);
+    if (!(lock as Array<{ acquired: number }>)[0]?.acquired)
+      throw new Error("Queue is busy. Try again shortly.");
+    const [recipients] = await db.execute(
+      "SELECT * FROM campaign_recipients WHERE id=? AND campaign_id=? AND status='uncertain' LIMIT 1",
+      [input.recipientId, input.campaignId],
+    );
+    const recipient = (recipients as RecipientRow[])[0];
+    if (!recipient) throw new Error("This contact no longer needs a delivery review.");
+    if (input.outcome === "delivered") {
+      const [campaigns] = await db.execute("SELECT * FROM campaigns WHERE id=?", [
+        input.campaignId,
+      ]);
+      const [steps] = await db.execute(
+        "SELECT * FROM campaign_steps WHERE campaign_id=? AND is_active=TRUE ORDER BY step_order",
+        [input.campaignId],
+      );
+      const sequence = steps as StepRow[];
+      const step = sequence.find((item) => item.step_order === recipient.current_step);
+      if (!step) throw new Error("Campaign step is missing. Stop this contact instead.");
+      await completeStep(
+        (campaigns as CampaignRow[])[0]!,
+        recipient,
+        step,
+        sequence,
+        recipient.message_id || undefined,
+      );
+    } else
+      await db.execute(
+        "UPDATE campaign_recipients SET status='active',attempt_count=0,error=NULL,dispatch_started_at=NULL,claimed_at=NULL,next_action_at=CURRENT_TIMESTAMP(3) WHERE id=? AND status='uncertain'",
+        [recipient.id],
+      );
+    await db.execute(
+      "INSERT INTO campaign_events(id,campaign_id,recipient_id,event_type,detail) VALUES(?,?,?,'delivery.reviewed',?)",
+      [
+        randomUUID(),
+        input.campaignId,
+        recipient.id,
+        JSON.stringify({ outcome: input.outcome, reviewedBy: userId }),
+      ],
+    );
+  } finally {
+    try {
+      await lease.query("SELECT RELEASE_LOCK(?)", [lockName]);
+    } finally {
+      lease.release();
+    }
+  }
 }

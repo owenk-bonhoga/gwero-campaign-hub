@@ -1,3 +1,4 @@
+import { safeAddress, safeHeader } from "./mail-safety";
 /** MIME message builder. Server-only. */
 
 export interface MimeAttachment {
@@ -11,6 +12,7 @@ function b64(value: string) {
 }
 
 export function encodeHeader(value: string) {
+  safeHeader(value);
   // eslint-disable-next-line no-control-regex
   return /^[\x00-\x7F]*$/.test(value) ? value : `=?UTF-8?B?${b64(value)}?=`;
 }
@@ -31,6 +33,13 @@ export function buildMime(options: {
   attachments?: MimeAttachment[];
   messageId: string;
 }): string {
+  [options.from, options.to, ...(options.cc || []), ...(options.bcc || [])].forEach(safeAddress);
+  safeHeader(options.messageId, "Message ID");
+  for (const attachment of options.attachments || []) {
+    safeHeader(attachment.filename, "Filename");
+    safeHeader(attachment.contentType, "Content type");
+    attachment.filename = attachment.filename.replace(/["\\]/g, "_");
+  }
   const boundaryMixed = `gwero_mix_${Math.random().toString(36).slice(2)}`;
   const boundaryAlt = `gwero_alt_${Math.random().toString(36).slice(2)}`;
   const attachments = options.attachments ?? [];

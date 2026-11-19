@@ -1,3 +1,4 @@
+import { validateContract } from "./input-contract";
 import { createServerFn } from "@tanstack/react-start";
 import type { PoolConnection } from "mysql2/promise";
 import {
@@ -101,7 +102,9 @@ function number(prefix: string) {
 
 export const getFinanceWorkspace = createServerFn({ method: "GET" })
   .middleware([permission])
-  .validator((data?: { sourceType?: string; sourceId?: string }) => data || {})
+  .validator((data?: { sourceType?: string; sourceId?: string }) =>
+    validateContract(data || {}, "getFinanceWorkspace"),
+  )
   .handler(async ({ data }) => {
     const db = await pool();
     const filter =
@@ -211,7 +214,7 @@ export const getFinanceWorkspace = createServerFn({ method: "GET" })
 
 export const saveFinanceTransaction = createServerFn({ method: "POST" })
   .middleware([permission])
-  .validator((data: FinanceTransactionInput) => data)
+  .validator((data: FinanceTransactionInput) => validateContract(data, "saveFinanceTransaction"))
   .handler(async ({ data, context }) => {
     if (!data.description.trim() || !validDate(data.date))
       throw new Error("Description and a valid transaction date are required.");
@@ -326,7 +329,7 @@ async function systemAccounts(connection: PoolConnection) {
 
 export const postFinanceTransaction = createServerFn({ method: "POST" })
   .middleware([permission])
-  .validator((data: { id: string }) => data)
+  .validator((data: { id: string }) => validateContract(data, "postFinanceTransaction"))
   .handler(async ({ data, context }) => {
     const db = await pool();
     const connection = await db.getConnection();
@@ -416,7 +419,7 @@ export const recordFinancePayment = createServerFn({ method: "POST" })
       method?: string;
       reference?: string;
       notes?: string;
-    }) => data,
+    }) => validateContract(data, "recordFinancePayment"),
   )
   .handler(async ({ data, context }) => {
     if (!validDate(data.date) || !Number.isFinite(Number(data.amount)) || Number(data.amount) <= 0)
@@ -508,7 +511,7 @@ export const recordFinancePayment = createServerFn({ method: "POST" })
 
 export const deleteFinanceDraft = createServerFn({ method: "POST" })
   .middleware([permission])
-  .validator((data: { id: string }) => data)
+  .validator((data: { id: string }) => validateContract(data, "deleteFinanceDraft"))
   .handler(async ({ data }) => {
     const db = await pool();
     const [result] = await db.execute(
@@ -522,7 +525,9 @@ export const deleteFinanceDraft = createServerFn({ method: "POST" })
 
 export const voidFinanceTransaction = createServerFn({ method: "POST" })
   .middleware([permission])
-  .validator((data: { id: string; reason: string }) => data)
+  .validator((data: { id: string; reason: string }) =>
+    validateContract(data, "voidFinanceTransaction"),
+  )
   .handler(async ({ data, context }) => {
     if (!data.reason.trim()) throw new Error("A void reason is required for the audit trail.");
     const db = await pool();

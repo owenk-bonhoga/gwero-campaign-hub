@@ -1,3 +1,4 @@
+import { validateContract } from "./input-contract";
 import { createServerFn } from "@tanstack/react-start";
 import { permissionMiddleware } from "./auth.middleware";
 import {
@@ -184,7 +185,7 @@ export const getSecureShareWorkspace = createServerFn({ method: "GET" })
 
 export const createSecureShare = createServerFn({ method: "POST" })
   .middleware([permission])
-  .validator((data: CreateSecureShareInput) => data)
+  .validator((data: CreateSecureShareInput) => validateContract(data, "createSecureShare"))
   .handler(async ({ data, context }) => {
     const title = cleanText(data.title, 200);
     if (!title) throw new Error("A secure share title is required.");
@@ -299,7 +300,9 @@ export const createSecureShare = createServerFn({ method: "POST" })
 
 export const resendSecureShareInvitation = createServerFn({ method: "POST" })
   .middleware([permission])
-  .validator((data: { recipientId: string }) => data)
+  .validator((data: { recipientId: string }) =>
+    validateContract(data, "resendSecureShareInvitation"),
+  )
   .handler(async ({ data, context }) => {
     const db = await pool();
     const recipient = rows<{ id: string; share_id: string; created_by: string }>(
@@ -327,7 +330,9 @@ export const resendSecureShareInvitation = createServerFn({ method: "POST" })
 
 export const addSecureShareRecipient = createServerFn({ method: "POST" })
   .middleware([permission])
-  .validator((data: { shareId: string; recipient: SecureShareRecipientInput }) => data)
+  .validator((data: { shareId: string; recipient: SecureShareRecipientInput }) =>
+    validateContract(data, "addSecureShareRecipient"),
+  )
   .handler(async ({ data, context }) => {
     const db = await pool();
     const email = data.recipient.email.trim().toLowerCase();
@@ -383,7 +388,9 @@ export const addSecureShareRecipient = createServerFn({ method: "POST" })
 
 export const updateSecureShareStatus = createServerFn({ method: "POST" })
   .middleware([permission])
-  .validator((data: { id: string; status: "active" | "revoked" }) => data)
+  .validator((data: { id: string; status: "active" | "revoked" }) =>
+    validateContract(data, "updateSecureShareStatus"),
+  )
   .handler(async ({ data, context }) => {
     const db = await pool();
     const [result] = await db.execute(
@@ -406,7 +413,9 @@ export const updateSecureShareStatus = createServerFn({ method: "POST" })
 
 export const updateSecureShareRecipient = createServerFn({ method: "POST" })
   .middleware([permission])
-  .validator((data: { id: string; allowDownload?: boolean; revoked?: boolean }) => data)
+  .validator((data: { id: string; allowDownload?: boolean; revoked?: boolean }) =>
+    validateContract(data, "updateSecureShareRecipient"),
+  )
   .handler(async ({ data, context }) => {
     const db = await pool();
     const recipient = rows<{ id: string; share_id: string }>(
@@ -458,7 +467,7 @@ export type PublicSecureShareState = {
   documents: Array<{ id: string; name: string; type: string; size: number; url: string }>;
 };
 export const openSecureShare = createServerFn({ method: "POST" })
-  .validator((data: { slug: string; token?: string }) => data)
+  .validator((data: { slug: string; token?: string }) => validateContract(data, "openSecureShare"))
   .handler(async ({ data }): Promise<PublicSecureShareState> => {
     const db = await pool();
     const share = rows<SerializableRow>(
@@ -539,7 +548,7 @@ export const openSecureShare = createServerFn({ method: "POST" })
   });
 
 export const requestSecureShareOtp = createServerFn({ method: "POST" })
-  .validator((data: { slug: string }) => data)
+  .validator((data: { slug: string }) => validateContract(data, "requestSecureShareOtp"))
   .handler(async ({ data }) => {
     const db = await pool();
     const { readSecureShareSession } = await import("./secure-share-session.server");
@@ -608,7 +617,9 @@ export const requestSecureShareOtp = createServerFn({ method: "POST" })
   });
 
 export const verifySecureShareOtp = createServerFn({ method: "POST" })
-  .validator((data: { slug: string; code: string }) => data)
+  .validator((data: { slug: string; code: string }) =>
+    validateContract(data, "verifySecureShareOtp"),
+  )
   .handler(async ({ data }) => {
     if (!/^\d{6}$/.test(data.code)) throw new Error("Enter the six-digit code.");
     const db = await pool();

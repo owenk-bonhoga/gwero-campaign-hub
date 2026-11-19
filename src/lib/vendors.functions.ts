@@ -1,3 +1,4 @@
+import { validateContract } from "./input-contract";
 import { createServerFn } from "@tanstack/react-start";
 import { permissionMiddleware } from "./auth.middleware";
 
@@ -71,7 +72,7 @@ export const getVendorWorkspace = createServerFn({ method: "GET" })
 
 export const saveVendor = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("procurement.manage")])
-  .validator((data: VendorInput) => data)
+  .validator((data: VendorInput) => validateContract(data, "saveVendor"))
   .handler(async ({ data }) => {
     if (!data.name.trim()) throw new Error("Add the vendor name.");
     if (!validEmail(data.email?.trim() || "")) throw new Error("Add a valid vendor email address.");
@@ -97,7 +98,7 @@ export const saveVendor = createServerFn({ method: "POST" })
 
 export const deleteVendor = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("procurement.manage")])
-  .validator((data: { id: string }) => data)
+  .validator((data: { id: string }) => validateContract(data, "deleteVendor"))
   .handler(async ({ data }) => {
     const { getPool } = await import("./db.server");
     await getPool().execute("DELETE FROM suppliers WHERE id = ?", [data.id]);
@@ -106,7 +107,7 @@ export const deleteVendor = createServerFn({ method: "POST" })
 
 export const saveVendorQuote = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("procurement.manage")])
-  .validator((data: QuoteInput) => data)
+  .validator((data: QuoteInput) => validateContract(data, "saveVendorQuote"))
   .handler(async ({ data, context }) => {
     if (!Number.isFinite(data.amount) || data.amount < 0)
       throw new Error("Quote amount must be a valid positive number.");
@@ -160,7 +161,7 @@ export const saveVendorQuote = createServerFn({ method: "POST" })
 
 export const deleteVendorQuote = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("procurement.manage")])
-  .validator((data: { id: string }) => data)
+  .validator((data: { id: string }) => validateContract(data, "deleteVendorQuote"))
   .handler(async ({ data }) => {
     const { getPool } = await import("./db.server");
     const db = getPool();

@@ -1,7 +1,10 @@
+import { clientDirectory } from "@/lib/directory.functions";
+import { useDebounced } from "@/lib/use-debounced";
+import { QueryState } from "@/components/QueryState";
 import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Building2, Mail, Plus, Search, UsersRound } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -37,17 +40,14 @@ function ClientsPage() {
   const [search, setSearch] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const { data: clients = [] } = useQuery({
-    queryKey: ["clients"],
-    queryFn: async () => {
-      const { data, error } = await db
-        .from("clients")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
+  const [offset, setOffset] = useState(0);
+  const term = useDebounced(search);
+  const listing = useQuery({
+    queryKey: ["clients", "directory", term, offset],
+    queryFn: () => clientDirectory({ data: { search: term, offset } }),
+    placeholderData: keepPreviousData,
   });
+  const filtered = listing.data?.rows || [];
   const create = useMutation({
     mutationFn: async () => {
       if (!name.trim()) throw new Error("Client name is required.");
@@ -64,17 +64,6 @@ function ClientsPage() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
-  const filtered = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    if (!query) return clients;
-    return clients.filter((client) =>
-      [client.name, client.company, client.email, client.industry].some((value) =>
-        String(value || "")
-          .toLowerCase()
-          .includes(query),
-      ),
-    );
-  }, [clients, search]);
   return (
     <AppShell
       title="Clients"
@@ -92,15 +81,20 @@ function ClientsPage() {
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 className="h-11 bg-background pl-10"
+                aria-label="Search clients"
                 placeholder="Search clients, companies, email or industry"
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  setOffset(0);
+                }}
               />
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
             <Input
               className="w-48 bg-background"
+              aria-label="Client name"
               placeholder="Client name"
               value={name}
               onChange={(event) => setName(event.target.value)}
@@ -108,6 +102,7 @@ function ClientsPage() {
             <Input
               className="w-56 bg-background"
               type="email"
+              aria-label="Client email"
               placeholder="Email address"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
@@ -120,10 +115,15 @@ function ClientsPage() {
       </Card>
       <div className="mb-3 flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          <span className="font-semibold text-foreground">{filtered.length}</span>{" "}
-          {filtered.length === 1 ? "client" : "clients"}
+          <span className="font-semibold text-foreground">{listing.data?.total ?? "…"}</span>{" "}
+          {listing.data?.total === 1 ? "client" : "clients"}
         </p>
       </div>
+      <QueryState
+        loading={listing.isPending}
+        error={listing.error}
+        retry={() => void listing.refetch()}
+      />
       {filtered.length ? (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {filtered.map((client) => {
@@ -183,7 +183,7 @@ function ClientsPage() {
             );
           })}
         </div>
-      ) : (
+      ) : !listing.isPending && !listing.error ? (
         <Card className="border-dashed">
           <CardContent className="grid min-h-40 place-items-center p-5 text-center">
             <div>
@@ -199,7 +199,23 @@ function ClientsPage() {
             </div>
           </CardContent>
         </Card>
-      )}
+      ) : null}
+      <div className="mt-4 flex gap-3">
+        <Button
+          variant="outline"
+          disabled={!offset || listing.isFetching}
+          onClick={() => setOffset(Math.max(0, offset - 30))}
+        >
+          Previous
+        </Button>
+        <Button
+          variant="outline"
+          disabled={listing.data?.nextOffset == null || listing.isFetching}
+          onClick={() => setOffset(listing.data?.nextOffset ?? offset)}
+        >
+          Next
+        </Button>
+      </div>
     </AppShell>
   );
 }

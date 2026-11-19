@@ -1,3 +1,4 @@
+import { validateContract } from "./input-contract";
 import { randomUUID } from "node:crypto";
 import type { RowDataPacket } from "mysql2/promise";
 import { createServerFn } from "@tanstack/react-start";
@@ -66,7 +67,9 @@ export const listPortalAccounts = createServerFn({ method: "GET" })
 
 export const revealPortalCredentials = createServerFn({ method: "POST" })
   .middleware([portalPermission])
-  .validator((data: { id: string }) => ({ id: clean(data?.id, 36) }))
+  .validator((data: { id: string }) =>
+    validateContract({ id: clean(data?.id, 36) }, "revealPortalCredentials"),
+  )
   .handler(async ({ data }) => {
     const { getPool } = await import("./db.server");
     const [rows] = await getPool().execute(
@@ -86,7 +89,7 @@ export const revealPortalCredentials = createServerFn({ method: "POST" })
 
 export const savePortalAccount = createServerFn({ method: "POST" })
   .middleware([portalPermission])
-  .validator((data: PortalAccountInput) => data)
+  .validator((data: PortalAccountInput) => validateContract(data, "savePortalAccount"))
   .handler(async ({ data, context }) => {
     const id = clean(data.id, 36) || randomUUID();
     const portalName = clean(data.portalName, 200);
@@ -142,7 +145,9 @@ export const savePortalAccount = createServerFn({ method: "POST" })
 
 export const archivePortalAccount = createServerFn({ method: "POST" })
   .middleware([portalPermission])
-  .validator((data: { id: string }) => ({ id: clean(data?.id, 36) }))
+  .validator((data: { id: string }) =>
+    validateContract({ id: clean(data?.id, 36) }, "archivePortalAccount"),
+  )
   .handler(async ({ data, context }) => {
     const { getPool } = await import("./db.server");
     const [result] = await getPool().execute(

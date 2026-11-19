@@ -1,3 +1,4 @@
+import { deadlineFetch } from "./request-deadline";
 import { randomUUID } from "node:crypto";
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
@@ -133,7 +134,7 @@ async function request<T>(
   for (const [key, value] of Object.entries(query || {})) url.searchParams.set(key, value);
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    const response = await fetch(url, {
+    const response = await deadlineFetch(url, {
       headers: { authorization: `Bearer ${config.token}`, accept: "application/json" },
       redirect: "error",
       signal: AbortSignal.timeout(20_000),

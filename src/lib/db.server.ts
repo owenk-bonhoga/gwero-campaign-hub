@@ -1,3 +1,6 @@
+import { withDatabaseDeadlines } from "./database-deadline";
+import { decryptMailboxRow, encryptMailboxSecret } from "./secret-crypto";
+import type { AuthUser } from "./auth.server";
 import { randomUUID } from "node:crypto";
 import mysql, { type Pool } from "mysql2/promise";
 import { createDb, type DbInput, type DbResult } from "./db-query";
@@ -923,28 +926,31 @@ export function getPool() {
   if (!pool) {
     const database = process.env["DB_NAME"] || "gwero_crm";
     if (!/^[a-zA-Z0-9_]+$/.test(database)) throw new Error("Invalid DB_NAME");
-    pool = mysql.createPool({
-      database,
-      user: process.env["DB_USER"] || process.env["USER"] || "root",
-      password: process.env["DB_PASSWORD"] || "",
-      charset: "utf8mb4_unicode_ci",
-      ...(process.env["DB_SOCKET"] || (!process.env["DB_HOST"] && process.platform === "darwin")
-        ? { socketPath: process.env["DB_SOCKET"] || "/tmp/mysql.sock" }
-        : {
-            host: process.env["DB_HOST"] || "127.0.0.1",
-            port: Number(process.env["DB_PORT"] || 3306),
-          }),
-      waitForConnections: true,
-      connectionLimit: 10,
-      maxIdle: 10,
-      idleTimeout: 60_000,
-      queueLimit: 100,
-      connectTimeout: connectTimeoutMs,
-      enableKeepAlive: true,
-      keepAliveInitialDelay: 0,
-      dateStrings: true,
-      decimalNumbers: true,
-    });
+    pool = withDatabaseDeadlines(
+      mysql.createPool({
+        database,
+        user: process.env["DB_USER"] || process.env["USER"] || "root",
+        password: process.env["DB_PASSWORD"] || "",
+        charset: "utf8mb4_unicode_ci",
+        ...(process.env["DB_SOCKET"] || (!process.env["DB_HOST"] && process.platform === "darwin")
+          ? { socketPath: process.env["DB_SOCKET"] || "/tmp/mysql.sock" }
+          : {
+              host: process.env["DB_HOST"] || "127.0.0.1",
+              port: Number(process.env["DB_PORT"] || 3306),
+            }),
+        waitForConnections: true,
+        connectionLimit: 10,
+        maxIdle: 10,
+        idleTimeout: 60_000,
+        queueLimit: 100,
+        connectTimeout: connectTimeoutMs,
+        enableKeepAlive: true,
+        keepAliveInitialDelay: 0,
+        dateStrings: true,
+        decimalNumbers: true,
+      }),
+      queryTimeoutMs,
+    );
   }
   return pool;
 }
@@ -961,7 +967,7 @@ function assertColumn(table: TableName, column: string) {
   return `\`${column}\``;
 }
 function decode(table: TableName, row: Record<string, unknown>) {
-  const result = { ...row };
+  const result = table === "mailbox_secrets" ? decryptMailboxRow(row) : { ...row };
   for (const key of jsonFields[table] || [])
     if (typeof result[key] === "string") {
       try {
@@ -976,6 +982,12 @@ function decode(table: TableName, row: Record<string, unknown>) {
 }
 function encode(table: TableName, key: string, value: unknown) {
   if (value === undefined) return null;
+  if (
+    table === "mailbox_secrets" &&
+    ["smtp_password", "imap_password", "oauth_access_token", "oauth_refresh_token"].includes(key) &&
+    typeof value === "string"
+  )
+    return encryptMailboxSecret(value);
   if (jsonFields[table]?.includes(key)) return JSON.stringify(value ?? (key === "extra" ? {} : []));
   if (typeof value === "boolean") return value ? 1 : 0;
   if (typeof value === "string" && /^\d{4}-\d\d-\d\dT/.test(value))
@@ -998,53 +1010,69 @@ function where(input: DbInput) {
   }
   return { sql: clauses.length ? ` WHERE ${clauses.join(" AND ")}` : "", params };
 }
-async function rows(table: TableName, clause: string, params: unknown[] = []) {
-  const [result] = await executeRead(`SELECT * FROM \`${table}\`${clause}`, params);
+function projection(table: TableName, columns = "*") {
+  const base = columns
+    .replace(/\w+\([^)]*\)/g, "")
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean);
+  if (base.includes("*")) return "*";
+  const keys = new Set(base.length ? base : ["id"]);
+  if (columns.includes("("))
+    for (const key of ["id", "client_id", "prospect_id", "campaign_id"])
+      if (fields[table].includes(key)) keys.add(key);
+  return [...keys].map((key) => assertColumn(table, key)).join(", ");
+}
+async function rows(table: TableName, clause: string, params: unknown[] = [], columns = "*") {
+  const [result] = await executeRead(
+    `SELECT ${projection(table, columns)} FROM \`${table}\`${clause}`,
+    params,
+  );
   return (result as Array<Record<string, unknown>>).map((row) => decode(table, row));
 }
 async function enrich(table: TableName, input: DbInput, selected: Array<Record<string, unknown>>) {
   const projection = input.columns || "";
-  if (table === "campaigns" && projection.includes("campaign_recipients(")) {
+  async function related(
+    target: TableName,
+    local: string,
+    foreign: string,
+    many = false,
+    order = "",
+  ) {
+    if (!selected.length || !projection.includes(`${target}(`)) return;
+    const ids = [...new Set(selected.map((row) => row[local]).filter(Boolean))];
+    const found = ids.length
+      ? await rows(
+          target,
+          ` WHERE ${assertColumn(target, foreign)} IN (${ids.map(() => "?").join(",")})${order}`,
+          ids,
+        )
+      : [];
+    const grouped = new Map<unknown, Array<Record<string, unknown>>>();
+    for (const row of found) {
+      const group = grouped.get(row[foreign]) || [];
+      group.push(row);
+      grouped.set(row[foreign], group);
+    }
     for (const row of selected)
-      row["campaign_recipients"] = await rows("campaign_recipients", " WHERE campaign_id = ?", [
-        row["id"],
-      ]);
+      row[target] = many ? grouped.get(row[local]) || [] : grouped.get(row[local])?.[0] || null;
   }
-  if (table === "campaigns" && projection.includes("campaign_steps(")) {
-    for (const row of selected)
-      row["campaign_steps"] = await rows(
-        "campaign_steps",
-        " WHERE campaign_id = ? ORDER BY step_order ASC",
-        [row["id"]],
-      );
+  if (table === "campaigns") {
+    await related("campaign_recipients", "id", "campaign_id", true);
+    await related("campaign_steps", "id", "campaign_id", true, " ORDER BY step_order");
   }
-  if (table === "campaign_recipients" && projection.includes("prospects(")) {
-    for (const row of selected)
-      row["prospects"] =
-        (await rows("prospects", " WHERE id = ? LIMIT 1", [row["prospect_id"]]))[0] || null;
-  }
-  if ((table === "deals" || table === "agreements") && projection.includes("clients(")) {
-    for (const row of selected)
-      row["clients"] = row["client_id"]
-        ? (await rows("clients", " WHERE id = ? LIMIT 1", [row["client_id"]]))[0] || null
-        : null;
-  }
-  if (table === "replies") {
-    if (projection.includes("prospects("))
-      for (const row of selected)
-        row["prospects"] = row["prospect_id"]
-          ? (await rows("prospects", " WHERE id = ? LIMIT 1", [row["prospect_id"]]))[0] || null
-          : null;
-    if (projection.includes("campaigns("))
-      for (const row of selected)
-        row["campaigns"] = row["campaign_id"]
-          ? (await rows("campaigns", " WHERE id = ? LIMIT 1", [row["campaign_id"]]))[0] || null
-          : null;
-  }
+  if (table === "campaign_recipients" || table === "replies")
+    await related("prospects", "prospect_id", "id");
+  if (table === "deals" || table === "agreements") await related("clients", "client_id", "id");
+  if (table === "replies") await related("campaigns", "campaign_id", "id");
   return selected;
 }
 
-async function execute(input: DbInput, allowSecrets: boolean): Promise<DbResult<unknown>> {
+async function execute(
+  input: DbInput,
+  allowSecrets: boolean,
+  user?: AuthUser,
+): Promise<DbResult<unknown>> {
   try {
     if (
       !Object.prototype.hasOwnProperty.call(fields, input.table) ||
@@ -1052,15 +1080,65 @@ async function execute(input: DbInput, allowSecrets: boolean): Promise<DbResult<
     )
       throw new Error("Table is not available");
     const table = input.table;
+    if (!allowSecrets) {
+      if (!user) throw new Error("Authentication required");
+      if (
+        table.startsWith("document_") ||
+        table.startsWith("secure_document_") ||
+        [
+          "documents",
+          "mailboxes",
+          "system_settings",
+          "portal_accounts",
+          "page_notes",
+          "page_note_comments",
+          "page_note_mentions",
+          "page_note_comment_mentions",
+        ].includes(table)
+      )
+        throw new Error("Use the access-controlled workspace for this operation.");
+      if (table.startsWith("campaign") && input.action !== "select")
+        throw new Error("Use the campaign workflow for this operation.");
+    }
     const condition = where(input);
+    if (input.search?.term.trim() && input.search.columns.length) {
+      if (input.search.columns.length > 20) throw new Error("Too many search columns");
+      condition.sql +=
+        (condition.sql ? " AND " : " WHERE ") +
+        "(" +
+        input.search.columns.map((column) => `${assertColumn(table, column)} LIKE ?`).join(" OR ") +
+        ")";
+      condition.params.push(
+        ...input.search.columns.map(() => `%${input.search!.term.trim().slice(0, 200)}%`),
+      );
+    }
+    if (!allowSecrets && table === "replies") {
+      condition.sql +=
+        (condition.sql ? " AND " : " WHERE ") +
+        "mailbox_id IN (SELECT id FROM mailboxes WHERE created_by = ? UNION SELECT mailbox_id FROM mailbox_access WHERE user_id = ?)";
+      condition.params.push(user!.id, user!.id);
+    }
     const db = getPool();
     if (input.action === "select") {
       const order = input.orderBy
         ? ` ORDER BY ${assertColumn(table, input.orderBy)} ${input.ascending === false ? "DESC" : "ASC"}`
         : "";
       const limit = ` LIMIT ${Math.max(1, Math.min(Number(input.limit) || 10000, 10000))}`;
-      const selected = await rows(table, condition.sql + order + limit, condition.params);
-      return { data: await enrich(table, input, selected), error: null };
+      const offset = ` OFFSET ${Math.max(0, Math.min(Math.floor(input.offset || 0), 1000000))}`;
+      const [selected, count] = await Promise.all([
+        rows(table, condition.sql + order + limit + offset, condition.params, input.columns),
+        input.count
+          ? executeRead(
+              `SELECT COUNT(*) total FROM ${table}${condition.sql}`,
+              condition.params,
+            ).then(([result]) => Number((result as Array<{ total: number }>)[0]?.total || 0))
+          : Promise.resolve(undefined),
+      ]);
+      return {
+        data: await enrich(table, input, selected),
+        error: null,
+        ...(count === undefined ? {} : { count }),
+      };
     }
     if (input.action === "insert" || input.action === "upsert") {
       const values = Array.isArray(input.values) ? input.values : [input.values || {}];
@@ -1126,4 +1204,4 @@ async function execute(input: DbInput, allowSecrets: boolean): Promise<DbResult<
 }
 
 export const serverDb = createDb((input) => execute(input, true));
-export const runClientQuery = (input: DbInput) => execute(input, false);
+export const runClientQuery = (input: DbInput, user: AuthUser) => execute(input, false, user);

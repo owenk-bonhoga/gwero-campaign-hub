@@ -1,3 +1,5 @@
+import { validateContract } from "./input-contract";
+import { deadlineFetch } from "./request-deadline";
 import { createServerFn } from "@tanstack/react-start";
 import { getSecret, getSecretStatus, setSecret } from "./settings.server";
 import { authMiddleware, permissionMiddleware } from "./auth.middleware";
@@ -20,7 +22,9 @@ export const getPublicBranding = createServerFn({ method: "GET" }).handler(async
       "font_family",
     ]);
   if (error) throw new Error(error.message);
-  return Object.fromEntries((data ?? []).map((row) => [row.setting_key, row.setting_value]));
+  return Object.fromEntries(
+    (data ?? []).map((row) => [row.setting_key, String(row.setting_value ?? "")]),
+  );
 });
 
 export const getSettingsOverview = createServerFn({ method: "GET" })
@@ -94,8 +98,8 @@ export const getSettingsOverview = createServerFn({ method: "GET" })
 
 export const saveSystemSettings = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("settings.manage")])
-  .validator(
-    (data: { group: string; values: Record<string, string | number | boolean | null> }) => data,
+  .validator((data: { group: string; values: Record<string, string | number | boolean | null> }) =>
+    validateContract(data, "saveSystemSettings"),
   )
   .handler(async ({ data }) => {
     const db = await admin();
@@ -113,7 +117,7 @@ export const saveSystemSettings = createServerFn({ method: "POST" })
 
 export const saveProviderSecrets = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("settings.manage")])
-  .validator((data: Record<string, string>) => data)
+  .validator((data: Record<string, string>) => validateContract(data, "saveProviderSecrets"))
   .handler(async ({ data }) => {
     for (const [key, value] of Object.entries(data)) await setSecret(key, value);
     return { ok: true };
@@ -135,7 +139,9 @@ export type AiProspect = {
 
 export const discoverProspects = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("prospects.manage")])
-  .validator((data: { prompt: string; categoryId?: string | null; limit?: number }) => data)
+  .validator((data: { prompt: string; categoryId?: string | null; limit?: number }) =>
+    validateContract(data, "discoverProspects"),
+  )
   .handler(async ({ data }) => {
     const apiKey = await getSecret("openai_api_key");
     if (!apiKey) throw new Error("Add an OpenAI API key in Settings → AI & Prospecting first.");
@@ -145,7 +151,7 @@ export const discoverProspects = createServerFn({ method: "POST" })
       .select("*")
       .in("setting_key", ["ai_model", "ai_base_url", "ai_prospect_context"]);
     const settings = Object.fromEntries(
-      (rows ?? []).map((row) => [row.setting_key, row.setting_value]),
+      (rows ?? []).map((row) => [row.setting_key, String(row.setting_value ?? "")]),
     );
     const category = data.categoryId
       ? (await db.from("prospect_categories").select("*").eq("id", data.categoryId).maybeSingle())
@@ -165,7 +171,7 @@ export const discoverProspects = createServerFn({ method: "POST" })
       fit_reason: { type: "string" },
       source_urls: { type: "array", items: { type: "string" } },
     };
-    const response = await fetch(
+    const response = await deadlineFetch(
       `${String(settings["ai_base_url"] || "https://api.openai.com/v1").replace(/\/$/, "")}/responses`,
       {
         method: "POST",

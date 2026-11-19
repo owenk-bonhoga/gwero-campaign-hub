@@ -1,3 +1,4 @@
+import { validateContract } from "./input-contract";
 import { randomUUID } from "node:crypto";
 import { createServerFn } from "@tanstack/react-start";
 import { permissionMiddleware } from "./auth.middleware";
@@ -99,7 +100,7 @@ export const listCampaigns = createServerFn({ method: "GET" })
 
 export const getCampaignWorkspace = createServerFn({ method: "GET" })
   .middleware([permissionMiddleware("campaigns.manage")])
-  .validator((data: { campaignId: string }) => data)
+  .validator((data: { campaignId: string }) => validateContract(data, "getCampaignWorkspace"))
   .handler(async ({ data, context }) => {
     const { getPool } = await import("./db.server");
     const db = getPool();
@@ -231,10 +232,12 @@ export const createCampaign = createServerFn({ method: "POST" })
       campaignType: string;
       objective?: string;
       approvalRequired?: boolean;
-    }) => data,
+    }) => validateContract(data, "createCampaign"),
   )
   .handler(async ({ data, context }) => {
     const { getPool } = await import("./db.server");
+    if (data.approvalRequired === false && !context.user.permissions.includes("campaigns.approve"))
+      throw new Error("Only campaign approvers can disable approval.");
     const campaignId = randomUUID();
     const stepId = randomUUID();
     const name = data.name.trim() || "Untitled campaign";
@@ -264,7 +267,7 @@ export const createCampaign = createServerFn({ method: "POST" })
 
 export const deleteCampaign = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("campaigns.manage")])
-  .validator((data: { campaignId: string }) => data)
+  .validator((data: { campaignId: string }) => validateContract(data, "deleteCampaign"))
   .handler(async ({ data }) => {
     const { getPool } = await import("./db.server");
     const [result] = await getPool().execute(
@@ -278,9 +281,11 @@ export const deleteCampaign = createServerFn({ method: "POST" })
 
 export const updateCampaign = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("campaigns.manage")])
-  .validator((data: CampaignPatch) => data)
+  .validator((data: CampaignPatch) => validateContract(data, "updateCampaign"))
   .handler(async ({ data, context }) => {
     const { getPool } = await import("./db.server");
+    if (!data.approvalRequired && !context.user.permissions.includes("campaigns.approve"))
+      throw new Error("Only campaign approvers can disable approval.");
     if (data.mailboxId) {
       const { requireMailboxAccess } = await import("./email-identity.server");
       await requireMailboxAccess(getPool(), data.mailboxId, context.user);
@@ -299,9 +304,9 @@ export const updateCampaign = createServerFn({ method: "POST" })
               owner_id = ?, daily_limit = ?, timezone = ?, approval_required = ?,
               stop_on_reply = ?, stop_on_bounce = ?, track_opens = ?, track_clicks = ?,
               cc = ?, bcc = ?, attachments = ?,
-              approved_by = IF(status = 'in_review', NULL, approved_by),
-              approved_at = IF(status = 'in_review', NULL, approved_at),
-              status = IF(status = 'in_review', 'draft', status)
+              approved_by = NULL,
+              approved_at = NULL,
+              status = IF(status IN ('approved','in_review','paused'), 'draft', status)
         WHERE id = ? AND status IN ('draft','in_review','approved','paused')`,
       [
         data.name.trim(),
@@ -330,7 +335,9 @@ export const updateCampaign = createServerFn({ method: "POST" })
 
 export const saveCampaignSequence = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("campaigns.manage")])
-  .validator((data: { campaignId: string; steps: CampaignStepInput[] }) => data)
+  .validator((data: { campaignId: string; steps: CampaignStepInput[] }) =>
+    validateContract(data, "saveCampaignSequence"),
+  )
   .handler(async ({ data, context }) => {
     if (!data.steps.length) throw new Error("Add at least one campaign step.");
     if (data.steps.length > 20) throw new Error("A campaign can have at most 20 steps.");
@@ -375,8 +382,8 @@ export const saveCampaignSequence = createServerFn({ method: "POST" })
         );
       }
       await connection.execute(
-        `UPDATE campaigns SET status = IF(status = 'in_review', 'draft', status),
-          approved_by = NULL, approved_at = NULL WHERE id = ?`,
+        `UPDATE campaigns SET status = IF(status IN ('approved','in_review','paused'), 'draft', status),
+          approved_by = NULL, approved_at = NULL, status = 'draft' WHERE id = ?`,
         [data.campaignId],
       );
       await connection.commit();
@@ -392,7 +399,9 @@ export const saveCampaignSequence = createServerFn({ method: "POST" })
 
 export const addCampaignAudience = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("campaigns.manage")])
-  .validator((data: { campaignId: string; contactIds: string[] }) => data)
+  .validator((data: { campaignId: string; contactIds: string[] }) =>
+    validateContract(data, "addCampaignAudience"),
+  )
   .handler(async ({ data, context }) => {
     const contactIds = [...new Set(data.contactIds)].slice(0, 5000);
     if (!contactIds.length) throw new Error("Select at least one contact person.");
@@ -422,7 +431,9 @@ export const addCampaignAudience = createServerFn({ method: "POST" })
 
 export const removeCampaignRecipient = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("campaigns.manage")])
-  .validator((data: { campaignId: string; recipientId: string }) => data)
+  .validator((data: { campaignId: string; recipientId: string }) =>
+    validateContract(data, "removeCampaignRecipient"),
+  )
   .handler(async ({ data, context }) => {
     const { getPool } = await import("./db.server");
     const [result] = await getPool().execute(
@@ -477,7 +488,7 @@ export const changeCampaignStatus = createServerFn({ method: "POST" })
       campaignId: string;
       action: "submit" | "approve" | "start" | "schedule" | "pause" | "resume";
       scheduledAt?: string;
-    }) => data,
+    }) => validateContract(data, "changeCampaignStatus"),
   )
   .handler(async ({ data, context }) => {
     const { getPool } = await import("./db.server");
@@ -522,7 +533,7 @@ export const changeCampaignStatus = createServerFn({ method: "POST" })
       );
     } else if (data.action === "resume") {
       await db.execute(
-        "UPDATE campaigns SET status = 'running' WHERE id = ? AND status = 'paused'",
+        "UPDATE campaigns SET status = 'running' WHERE id = ? AND status = 'paused' AND (approval_required=FALSE OR approved_at IS NOT NULL)",
         [data.campaignId],
       );
     } else {
@@ -546,16 +557,13 @@ export const changeCampaignStatus = createServerFn({ method: "POST" })
       );
     }
     await event(data.campaignId, `campaign.${data.action}`, context.user.id, data.scheduledAt);
-    if (data.action === "start") {
-      const { processCampaignQueue } = await import("./campaigns.server");
-      await processCampaignQueue({ campaignId: data.campaignId, maxActions: 5 });
-    }
+
     return { ok: true };
   });
 
 export const runCampaignQueue = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("campaigns.manage")])
-  .validator((data: { campaignId?: string }) => data)
+  .validator((data: { campaignId?: string }) => validateContract(data, "runCampaignQueue"))
   .handler(async ({ data }) => {
     const { processCampaignQueue } = await import("./campaigns.server");
     return processCampaignQueue(data.campaignId ? { campaignId: data.campaignId } : {});
@@ -563,7 +571,9 @@ export const runCampaignQueue = createServerFn({ method: "POST" })
 
 export const suppressEmail = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("campaigns.manage")])
-  .validator((data: { campaignId: string; email: string; reason: string }) => data)
+  .validator((data: { campaignId: string; email: string; reason: string }) =>
+    validateContract(data, "suppressEmail"),
+  )
   .handler(async ({ data, context }) => {
     const email = data.email.trim().toLowerCase();
     if (!email) throw new Error("Email address is required.");
@@ -581,5 +591,17 @@ export const suppressEmail = createServerFn({ method: "POST" })
       [data.reason || "suppressed", data.campaignId, email],
     );
     await event(data.campaignId, "recipient.suppressed", context.user.id, email);
+    return { ok: true };
+  });
+
+export const resolveCampaignDelivery = createServerFn({ method: "POST" })
+  .middleware([permissionMiddleware("campaigns.manage")])
+  .validator(
+    (data: { campaignId: string; recipientId: string; outcome: "delivered" | "not_delivered" }) =>
+      validateContract(data, "resolveCampaignDelivery"),
+  )
+  .handler(async ({ data, context }) => {
+    const { resolveUncertainDelivery } = await import("./campaigns.server");
+    await resolveUncertainDelivery(data, context.user.id);
     return { ok: true };
   });

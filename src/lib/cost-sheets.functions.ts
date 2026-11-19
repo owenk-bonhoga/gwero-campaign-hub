@@ -1,3 +1,4 @@
+import { validateContract } from "./input-contract";
 import { randomUUID } from "node:crypto";
 import { createServerFn } from "@tanstack/react-start";
 import type { PoolConnection } from "mysql2/promise";
@@ -279,7 +280,7 @@ function validateFormulaGraph(columns: CostSheetColumn[], rulesInput: unknown) {
 
 export const getCostSheetWorkspace = createServerFn({ method: "GET" })
   .middleware([permissionMiddleware("opportunities.manage")])
-  .validator((data: { costSheetId: string }) => data)
+  .validator((data: { costSheetId: string }) => validateContract(data, "getCostSheetWorkspace"))
   .handler(async ({ data }) => {
     const { getPool } = await import("./db.server");
     const db = getPool();
@@ -338,7 +339,9 @@ export const getCostSheetWorkspace = createServerFn({ method: "GET" })
 
 export const setCostSheetSourceQuote = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("opportunities.manage")])
-  .validator((data: { costSheetId: string; quoteId: string; linked: boolean }) => data)
+  .validator((data: { costSheetId: string; quoteId: string; linked: boolean }) =>
+    validateContract(data, "setCostSheetSourceQuote"),
+  )
   .handler(async ({ data, context }) => {
     const { getPool } = await import("./db.server");
     const db = getPool();
@@ -363,7 +366,7 @@ export const setCostSheetSourceQuote = createServerFn({ method: "POST" })
 
 export const saveCostSheetItem = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("opportunities.manage")])
-  .validator((data: ItemInput) => data)
+  .validator((data: ItemInput) => validateContract(data, "saveCostSheetItem"))
   .handler(async ({ data }) => {
     if (!data.description.trim()) throw new Error("Add an item description.");
     validateNumber(data.quantity, "Quantity");
@@ -422,7 +425,9 @@ export const saveCostSheetItem = createServerFn({ method: "POST" })
 
 export const deleteCostSheetItem = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("opportunities.manage")])
-  .validator((data: { costSheetId: string; itemId: string }) => data)
+  .validator((data: { costSheetId: string; itemId: string }) =>
+    validateContract(data, "deleteCostSheetItem"),
+  )
   .handler(async ({ data }) => {
     const { getPool } = await import("./db.server");
     const [result] = await getPool().execute(
@@ -444,7 +449,7 @@ export const saveCostSheetColumn = createServerFn({ method: "POST" })
       dataType: "text" | "number" | "formula";
       defaultValue: string;
       formulaExpression: string;
-    }) => data,
+    }) => validateContract(data, "saveCostSheetColumn"),
   )
   .handler(async ({ data }) => {
     if (!data.name.trim()) throw new Error("Add a column name.");
@@ -530,7 +535,9 @@ export const saveCostSheetColumn = createServerFn({ method: "POST" })
 
 export const saveCostSheetColumnRules = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("opportunities.manage")])
-  .validator((data: { costSheetId: string; rules: CostSheetSystemColumnRules }) => data)
+  .validator((data: { costSheetId: string; rules: CostSheetSystemColumnRules }) =>
+    validateContract(data, "saveCostSheetColumnRules"),
+  )
   .handler(async ({ data }) => {
     for (const key of costSheetSystemColumnKeys)
       if (!data.rules[key]?.label?.trim()) throw new Error(`Add a label for ${key}.`);
@@ -565,7 +572,9 @@ export const saveCostSheetColumnRules = createServerFn({ method: "POST" })
 
 export const deleteCostSheetColumn = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("opportunities.manage")])
-  .validator((data: { costSheetId: string; columnId: string }) => data)
+  .validator((data: { costSheetId: string; columnId: string }) =>
+    validateContract(data, "deleteCostSheetColumn"),
+  )
   .handler(async ({ data }) => {
     const { getPool } = await import("./db.server");
     const db = getPool();
@@ -622,7 +631,9 @@ export const deleteCostSheetColumn = createServerFn({ method: "POST" })
 
 export const updateCostSheet = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("opportunities.manage")])
-  .validator((data: { costSheetId: string; name: string; status: string; notes: string }) => data)
+  .validator((data: { costSheetId: string; name: string; status: string; notes: string }) =>
+    validateContract(data, "updateCostSheet"),
+  )
   .handler(async ({ data }) => {
     if (!data.name.trim()) throw new Error("Add a cost sheet name.");
     if (!["draft", "approved", "archived"].includes(data.status))
@@ -639,7 +650,7 @@ export const updateCostSheet = createServerFn({ method: "POST" })
 
 export const deleteCostSheet = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("opportunities.manage")])
-  .validator((data: { costSheetId: string }) => data)
+  .validator((data: { costSheetId: string }) => validateContract(data, "deleteCostSheet"))
   .handler(async ({ data }) => {
     if (!data.costSheetId) throw new Error("Cost sheet not found.");
     const { getPool } = await import("./db.server");
@@ -765,7 +776,7 @@ export const createCostSheet = createServerFn({ method: "POST" })
       currency: string;
       notes?: string;
       templateId?: string;
-    }) => data,
+    }) => validateContract(data, "createCostSheet"),
   )
   .handler(async ({ data }) => {
     if (!data.name.trim()) throw new Error("Add a cost sheet name.");
@@ -810,7 +821,9 @@ export const createCostSheet = createServerFn({ method: "POST" })
 
 export const saveCostSheetAsTemplate = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("opportunities.manage")])
-  .validator((data: { costSheetId: string; name: string; description?: string }) => data)
+  .validator((data: { costSheetId: string; name: string; description?: string }) =>
+    validateContract(data, "saveCostSheetAsTemplate"),
+  )
   .handler(async ({ data, context }) => {
     if (!data.name.trim()) throw new Error("Add a template name.");
     const { getPool } = await import("./db.server");
@@ -847,7 +860,9 @@ export const saveCostSheetAsTemplate = createServerFn({ method: "POST" })
 
 export const applyCostSheetTemplate = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("opportunities.manage")])
-  .validator((data: { costSheetId: string; templateId: string }) => data)
+  .validator((data: { costSheetId: string; templateId: string }) =>
+    validateContract(data, "applyCostSheetTemplate"),
+  )
   .handler(async ({ data }) => {
     const { getPool } = await import("./db.server");
     const db = getPool();
@@ -891,7 +906,7 @@ export const applyCostSheetTemplate = createServerFn({ method: "POST" })
 
 export const deleteCostSheetTemplate = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("opportunities.manage")])
-  .validator((data: { templateId: string }) => data)
+  .validator((data: { templateId: string }) => validateContract(data, "deleteCostSheetTemplate"))
   .handler(async ({ data }) => {
     if (data.templateId.startsWith("system-"))
       throw new Error("Built-in templates cannot be deleted.");

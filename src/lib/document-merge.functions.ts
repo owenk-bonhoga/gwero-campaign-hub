@@ -1,3 +1,4 @@
+import { validateContract } from "./input-contract";
 import { createServerFn } from "@tanstack/react-start";
 import { permissionMiddleware } from "./auth.middleware";
 import type { OpportunityKind } from "./opportunities.functions";
@@ -65,7 +66,7 @@ type ResolvedSource = MergeSourceRef & {
 
 export const mergeOpportunityDocuments = createServerFn({ method: "POST" })
   .middleware([permissionMiddleware("opportunities.manage")])
-  .validator((data: MergeInput) => data)
+  .validator((data: MergeInput) => validateContract(data, "mergeOpportunityDocuments"))
   .handler(async ({ data, context }) => {
     validate(data);
     const [{ getPool }, { readAttachmentRecord, saveAttachmentBuffer }, { PDFDocument }] =

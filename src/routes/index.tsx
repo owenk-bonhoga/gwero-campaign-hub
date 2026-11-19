@@ -16,80 +16,32 @@ import {
 } from "lucide-react";
 import { AppShell, money } from "@/components/AppShell";
 import { MetricValue } from "@/components/ui/metric-value";
-import { db } from "@/lib/db";
+import { getDashboard } from "@/lib/dashboard.functions";
+import { mayAccessPage } from "@/lib/page-access";
 import type { LucideIcon } from "lucide-react";
 
 export const Route = createFileRoute("/")({ component: Dashboard });
 type Metric = {
   label: string;
-  value: number;
+  value: number | null;
   hint: string;
   to: string;
   icon: typeof Users;
   tone: string;
 };
 
-async function loadDashboard() {
-  const [
-    clientResult,
-    projectResult,
-    taskResult,
-    bidResult,
-    quoteResult,
-    campaignResult,
-    employeeResult,
-    invoiceResult,
-  ] = await Promise.all([
-    db.from("clients").select("*").order("created_at", { ascending: false }).limit(8),
-    db.from("projects").select("*").order("created_at", { ascending: false }).limit(8),
-    db.from("tasks").select("*").order("created_at", { ascending: false }).limit(8),
-    db.from("bids").select("*").order("created_at", { ascending: false }).limit(8),
-    db.from("quotations").select("*").order("created_at", { ascending: false }).limit(8),
-    db.from("campaigns").select("*").order("created_at", { ascending: false }).limit(8),
-    db.from("employees").select("*").order("created_at", { ascending: false }).limit(8),
-    db.from("invoices").select("*").order("created_at", { ascending: false }).limit(8),
-  ]);
-  const failed = [
-    clientResult,
-    projectResult,
-    taskResult,
-    bidResult,
-    quoteResult,
-    campaignResult,
-    employeeResult,
-    invoiceResult,
-  ].find((result) => result.error);
-  if (failed?.error) throw new Error(failed.error.message);
-  const clients = clientResult.data,
-    projects = projectResult.data,
-    tasks = taskResult.data,
-    bids = bidResult.data,
-    quotations = quoteResult.data,
-    campaigns = campaignResult.data,
-    employees = employeeResult.data,
-    invoices = invoiceResult.data;
-  return { clients, projects, tasks, bids, quotations, campaigns, employees, invoices };
-}
-
 function Dashboard() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["gwero-os-dashboard"],
-    queryFn: loadDashboard,
+    queryFn: () => getDashboard(),
   });
-  const openTasks = data?.tasks.filter((t) => t.status !== "done").length ?? 0;
-  const activeProjects =
-    data?.projects.filter((p) => !["completed", "cancelled"].includes(p.status)).length ?? 0;
-  const openBids =
-    data?.bids.filter((b) => !["won", "lost", "withdrawn"].includes(b.status)).length ?? 0;
-  const outstanding =
-    data?.invoices.reduce(
-      (sum, i) => sum + Math.max(0, Number(i.amount) - Number(i.paid_amount)),
-      0,
-    ) ?? 0;
+  const openTasks = data?.counts.tasks ?? null;
+  const activeProjects = data?.counts.projects ?? null;
+  const openBids = data?.counts.bids ?? null;
   const metrics: Metric[] = [
     {
       label: "Active clients",
-      value: data?.clients.filter((c) => c.status === "active").length ?? 0,
+      value: data?.counts.clients ?? null,
       hint: "relationships in progress",
       to: "/clients",
       icon: Building2,
@@ -122,10 +74,15 @@ function Dashboard() {
   ];
   return (
     <AppShell
-      title="Good morning, Gwero team"
+      title="Your Gwero workspace"
       description="Here is what is happening across the business today."
     >
       <div className="space-y-5">
+        {data?.errors.length ? (
+          <div role="alert" className="rounded-xl border border-amber-200 p-4 text-sm">
+            {data.errors.join(" ")}
+          </div>
+        ) : null}
         {error ? (
           <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             {error.message}
@@ -151,31 +108,33 @@ function Dashboard() {
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-lg font-bold">Your workspace today</h2>
             <span className="text-xs text-muted-foreground">
-              {isLoading ? "Updating…" : "Live from MySQL"}
+              {isLoading ? "Updating…" : "Up to date"}
             </span>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {metrics.map(({ label, value, hint, to, icon: Icon, tone }) => (
-              <Link
-                key={label}
-                to={to as never}
-                className="group min-w-0 rounded-xl border bg-card p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-              >
-                <div className="flex items-start justify-between">
-                  <span className={`grid size-9 place-items-center rounded-xl ${tone}`}>
-                    <Icon className="size-5" />
-                  </span>
-                  <ArrowRight className="size-4 text-slate-300 transition group-hover:translate-x-1 group-hover:text-violet-600" />
-                </div>
-                <MetricValue
-                  className="mt-3 text-[#21143f]"
-                  value={isLoading ? "—" : value}
-                  maxSize={1.75}
-                />
-                <p className="mt-1 text-sm font-semibold">{label}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
-              </Link>
-            ))}
+            {metrics
+              .filter((metric) => mayAccessPage(metric.to, data?.permissions || []))
+              .map(({ label, value, hint, to, icon: Icon, tone }) => (
+                <Link
+                  key={label}
+                  to={to as never}
+                  className="group min-w-0 rounded-xl border bg-card p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                >
+                  <div className="flex items-start justify-between">
+                    <span className={`grid size-9 place-items-center rounded-xl ${tone}`}>
+                      <Icon className="size-5" />
+                    </span>
+                    <ArrowRight className="size-4 text-slate-300 transition group-hover:translate-x-1 group-hover:text-violet-600" />
+                  </div>
+                  <MetricValue
+                    className="mt-3 text-[#21143f]"
+                    value={isLoading ? "…" : (value ?? "Unavailable")}
+                    maxSize={1.75}
+                  />
+                  <p className="mt-1 text-sm font-semibold">{label}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
+                </Link>
+              ))}
           </div>
         </section>
         <section className="grid gap-4 xl:grid-cols-[1.45fr_1fr]">
@@ -228,39 +187,54 @@ function Dashboard() {
                     ["/tasks", "Task", ClipboardCheck],
                     ["/campaigns", "Campaign", Send],
                   ] as Array<[string, string, LucideIcon]>
-                ).map(([to, label, Icon]) => (
-                  <Link
-                    key={String(to)}
-                    to={to as never}
-                    className="flex min-h-20 flex-col items-center justify-center gap-2 rounded-lg border bg-[#fbf9ff] text-sm font-semibold text-[#321568] transition hover:border-violet-300 hover:bg-violet-50"
-                  >
-                    <Icon className="size-5" />
-                    <span>
-                      <Plus className="mr-1 inline size-3" />
-                      {label as string}
-                    </span>
-                  </Link>
-                ))}
+                )
+                  .filter(([to]) => mayAccessPage(to, data?.permissions || []))
+                  .map(([to, label, Icon]) => (
+                    <Link
+                      key={String(to)}
+                      to={to as never}
+                      className="flex min-h-20 flex-col items-center justify-center gap-2 rounded-lg border bg-[#fbf9ff] text-sm font-semibold text-[#321568] transition hover:border-violet-300 hover:bg-violet-50"
+                    >
+                      <Icon className="size-5" />
+                      <span>
+                        <Plus className="mr-1 inline size-3" />
+                        {label as string}
+                      </span>
+                    </Link>
+                  ))}
               </div>
             </div>
-            <div className="rounded-xl border bg-card p-4 shadow-sm">
-              <h2 className="font-bold">Financial snapshot</h2>
-              <div className="mt-4 flex items-center gap-4">
-                <span className="grid size-12 place-items-center rounded-2xl bg-emerald-50 text-emerald-700">
-                  <CircleDollarSign className="size-6" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <MetricValue value={money(outstanding, "MWK")} maxSize={1.5} />
-                  <p className="text-xs text-muted-foreground">Outstanding on recent invoices</p>
+            {data?.permissions.includes("finance.manage") ? (
+              <div className="rounded-xl border bg-card p-4 shadow-sm">
+                <h2 className="font-bold">Financial snapshot</h2>
+                <div className="mt-4 flex items-center gap-4">
+                  <span className="grid size-12 place-items-center rounded-2xl bg-emerald-50 text-emerald-700">
+                    <CircleDollarSign className="size-6" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <MetricValue
+                      value={
+                        data?.receivables.length
+                          ? data.receivables
+                              .map((row) => money(row.amount, row.currency))
+                              .join(" · ")
+                          : "No outstanding receivables"
+                      }
+                      maxSize={1.5}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Outstanding posted revenue by currency
+                    </p>
+                  </div>
                 </div>
+                <Link
+                  to="/finance"
+                  className="mt-4 flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3 text-sm font-semibold"
+                >
+                  Open finance <ArrowRight className="size-4" />
+                </Link>
               </div>
-              <Link
-                to="/finance"
-                className="mt-4 flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3 text-sm font-semibold"
-              >
-                Open finance <ArrowRight className="size-4" />
-              </Link>
-            </div>
+            ) : null}
           </div>
         </section>
         <section>
@@ -275,16 +249,18 @@ function Dashboard() {
                 ["/procurement", "Procurement", BriefcaseBusiness],
                 ["/documents", "Documents", FileText],
               ] as Array<[string, string, LucideIcon]>
-            ).map(([to, label, Icon]) => (
-              <Link
-                key={String(to)}
-                to={to as never}
-                className="flex items-center gap-3 rounded-xl border bg-card p-4 text-sm font-semibold transition hover:border-violet-300 hover:text-violet-700"
-              >
-                <Icon className="size-5 text-violet-600" />
-                {label as string}
-              </Link>
-            ))}
+            )
+              .filter(([to]) => mayAccessPage(to, data?.permissions || []))
+              .map(([to, label, Icon]) => (
+                <Link
+                  key={String(to)}
+                  to={to as never}
+                  className="flex items-center gap-3 rounded-xl border bg-card p-4 text-sm font-semibold transition hover:border-violet-300 hover:text-violet-700"
+                >
+                  <Icon className="size-5 text-violet-600" />
+                  {label as string}
+                </Link>
+              ))}
           </div>
         </section>
       </div>

@@ -219,8 +219,10 @@ function PreviewBody({ preview }: { preview: PreviewData }) {
   );
 }
 
-export function GlobalDocumentViewer() {
-  const [target, setTarget] = useState<PreviewTarget | null>(null);
+export function GlobalDocumentViewer({
+  initialTarget,
+}: { initialTarget?: PreviewTarget | undefined } = {}) {
+  const [target, setTarget] = useState<PreviewTarget | null>(initialTarget || null);
   const [markingSource, setMarkingSource] = useState<MarkingSource | null>(null);
   const [metadata, setMetadata] = useState<Metadata | null>(null);
   const [preview, setPreview] = useState<PreviewData | null>(null);
@@ -243,8 +245,13 @@ export function GlobalDocumentViewer() {
         allowDownload: anchor.dataset["documentDownloadDisabled"] !== "true",
       });
     };
+    const onOpen = (event: Event) => setTarget((event as CustomEvent<PreviewTarget>).detail);
+    document.addEventListener("gwero:open-document", onOpen);
     document.addEventListener("click", onClick, true);
-    return () => document.removeEventListener("click", onClick, true);
+    return () => {
+      document.removeEventListener("click", onClick, true);
+      document.removeEventListener("gwero:open-document", onOpen);
+    };
   }, []);
 
   useEffect(() => {

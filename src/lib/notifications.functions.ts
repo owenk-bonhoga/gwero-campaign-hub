@@ -1,3 +1,5 @@
+import { mayAccessPage } from "./page-access";
+import { validateContract } from "./input-contract";
 import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware, permissionMiddleware } from "./auth.middleware";
 
@@ -25,11 +27,15 @@ async function listForUser(userId: string) {
 
 export const getNotifications = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .handler(({ context }) => listForUser(context.user.id));
+  .handler(async ({ context }) =>
+    (await listForUser(context.user.id)).filter(
+      (item) => !item.action_url || mayAccessPage(item.action_url, context.user.permissions),
+    ),
+  );
 
 export const markNotificationRead = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((data: { notificationId: string }) => data)
+  .validator((data: { notificationId: string }) => validateContract(data, "markNotificationRead"))
   .handler(async ({ data, context }) => {
     const { serverDb } = await import("./db.server");
     const { error } = await serverDb

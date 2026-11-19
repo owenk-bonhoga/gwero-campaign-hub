@@ -96,6 +96,7 @@ function FieldInput({
   if (field.type === "textarea") {
     return (
       <Textarea
+        aria-label={field.label}
         rows={3}
         value={value}
         placeholder={field.placeholder}
@@ -106,7 +107,7 @@ function FieldInput({
   if (field.type === "select") {
     return (
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger>
+        <SelectTrigger aria-label={field.label}>
           <SelectValue placeholder="Select" />
         </SelectTrigger>
         <SelectContent>
@@ -122,7 +123,7 @@ function FieldInput({
   if (field.type === "currency") {
     return (
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger>
+        <SelectTrigger aria-label={field.label}>
           <SelectValue placeholder="Select currency" />
         </SelectTrigger>
         <SelectContent>
@@ -139,7 +140,7 @@ function FieldInput({
     const labelKey = field.refLabel ?? "name";
     return (
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger>
+        <SelectTrigger aria-label={field.label}>
           <SelectValue placeholder="Select" />
         </SelectTrigger>
         <SelectContent>
@@ -155,6 +156,7 @@ function FieldInput({
   }
   return (
     <Input
+      aria-label={field.label}
       type={field.type === "number" ? "number" : field.type === "date" ? "date" : "text"}
       value={value}
       placeholder={field.placeholder}
@@ -174,6 +176,8 @@ export function RecordsTable({
   searchKeys = [],
   emptyLabel = "Nothing here yet.",
   createLabel = "New record",
+  serverSearch,
+  onSearch,
 }: {
   table: TableName;
   columns: ColumnDef[];
@@ -185,6 +189,8 @@ export function RecordsTable({
   searchKeys?: string[];
   emptyLabel?: string;
   createLabel?: string;
+  serverSearch?: string;
+  onSearch?: (value: string) => void;
 }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -200,7 +206,7 @@ export function RecordsTable({
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q || !searchKeys.length) return rows;
+    if (onSearch || !q || !searchKeys.length) return rows;
     return rows.filter((r) =>
       searchKeys.some((k) =>
         String(r[k] ?? "")
@@ -208,7 +214,7 @@ export function RecordsTable({
           .includes(q),
       ),
     );
-  }, [rows, search, searchKeys]);
+  }, [rows, search, searchKeys, onSearch]);
 
   const invalidate = () => void qc.invalidateQueries({ queryKey: ["rows", table, select] });
 
@@ -242,7 +248,10 @@ export function RecordsTable({
         .eq("id", id);
       if (error) throw new Error(error.message);
     },
-    onSuccess: () => {
+    onSuccess: (_, id) => {
+      qc.setQueriesData<Row[]>({ queryKey: ["rows", table, select] }, (rows) =>
+        Array.isArray(rows) ? rows.filter((row) => row["id"] !== id) : rows,
+      );
       toast.success("Deleted.");
       invalidate();
     },
@@ -255,9 +264,10 @@ export function RecordsTable({
         {searchKeys.length ? (
           <Input
             className="max-w-xs"
+            aria-label="Search records"
             placeholder="Search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={serverSearch ?? search}
+            onChange={(e) => (onSearch ? onSearch(e.target.value) : setSearch(e.target.value))}
           />
         ) : null}
         <Dialog open={open} onOpenChange={setOpen}>

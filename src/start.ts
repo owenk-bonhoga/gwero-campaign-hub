@@ -1,3 +1,4 @@
+import { appOrigin, isRecipientPortal } from "./lib/app-origin";
 import { createStart, createCsrfMiddleware, createMiddleware } from "@tanstack/react-start";
 
 import { isDatabaseUnavailableError } from "./lib/database-resilience";
@@ -40,6 +41,7 @@ const pageAuthMiddleware = createMiddleware().server(async ({ next, request }) =
   const url = new URL(request.url);
   const publicPath =
     url.pathname === "/login" ||
+    isRecipientPortal(url.pathname) ||
     url.pathname === "/api/health" ||
     url.pathname.startsWith("/api/public/") ||
     url.pathname.startsWith("/assets/") ||
@@ -51,14 +53,14 @@ const pageAuthMiddleware = createMiddleware().server(async ({ next, request }) =
   if (!publicPath && isPageRequest) {
     const { currentUser } = await import("./lib/auth.server");
     if (!(await currentUser())) {
-      const login = new URL("/login", url);
+      const login = new URL("/login", appOrigin(request.url));
       login.searchParams.set("next", `${url.pathname}${url.search}`);
       return Response.redirect(login, 302);
     }
   }
   if (url.pathname === "/login" && isPageRequest) {
     const { currentUser } = await import("./lib/auth.server");
-    if (await currentUser()) return Response.redirect(new URL("/", url), 302);
+    if (await currentUser()) return Response.redirect(new URL("/", appOrigin(request.url)), 302);
   }
   return next();
 });

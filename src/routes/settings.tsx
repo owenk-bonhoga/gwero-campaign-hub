@@ -71,6 +71,7 @@ function Field({
     <div className="space-y-2">
       <Label>{label}</Label>
       <Input
+        aria-label={label}
         type={type}
         value={value}
         placeholder={placeholder}

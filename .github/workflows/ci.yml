@@ -40,6 +40,8 @@ jobs:
       DB_USER: root
       DB_PASSWORD: ci-test-password
       DB_NAME: gwero_ci
+      SETTINGS_ENCRYPTION_KEY: ci-mailbox-key-not-for-production
+      RUN_DATABASE_TESTS: "1"
       RELEASE_COMMIT_SHA: ${{ github.sha }}
 
     steps:
@@ -77,6 +79,12 @@ jobs:
 
       - name: Apply migrations twice to prove idempotence
         run: npm run db:migrate && npm run db:migrate && npm run db:verify
+
+      - name: Check runtime input contracts
+        run: npm run contracts:check
+
+      - name: Run database integration tests
+        run: npm run test:integration
 
       - name: Build production application
         run: npm run deploy:build
