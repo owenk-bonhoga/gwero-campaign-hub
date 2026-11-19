@@ -9,8 +9,14 @@ export const Route = createFileRoute("/api/public/t/open")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const recipientId = new URL(request.url).searchParams.get("r");
-        if (recipientId) {
+        const params = new URL(request.url).searchParams;
+        const recipientId = params.get("r");
+        const { validCampaignTrackingToken } = await import("@/lib/campaign-tracking-security");
+        if (
+          recipientId &&
+          /^[0-9a-f-]{36}$/i.test(recipientId) &&
+          validCampaignTrackingToken(params.get("t"), "open", recipientId)
+        ) {
           try {
             const { serverDb } = await import("@/lib/db.server");
             const { data: row } = await serverDb

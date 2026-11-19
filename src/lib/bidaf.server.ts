@@ -113,8 +113,16 @@ async function configuration() {
     token = (await getSecret("bidaf_api_token"))?.trim();
   }
   if (!organisationId || !token) return null;
-  if (!origin.startsWith("https://")) throw new Error("BIDAF_ORIGIN must use HTTPS.");
-  const apiBase = origin.endsWith("/api/v1") ? origin : `${origin}/api/v1`;
+  const { trustedServiceUrl } = await import("./service-url-security");
+  const trustedOrigin = trustedServiceUrl(origin, {
+    label: "BidAF origin",
+    defaultOrigins: ["https://bidaf.africa"],
+    allowedOriginsEnv: "BIDAF_ALLOWED_ORIGINS",
+  });
+  const normalizedOrigin = trustedOrigin.toString().replace(/\/$/, "");
+  const apiBase = normalizedOrigin.endsWith("/api/v1")
+    ? normalizedOrigin
+    : `${normalizedOrigin}/api/v1`;
   return {
     apiBase,
     organisationId,

@@ -7,10 +7,23 @@ export const Route = createFileRoute("/api/public/t/click")({
         const params = new URL(request.url).searchParams;
         const recipientId = params.get("r");
         const target = params.get("u");
-        let destination = "https://example.com";
-        if (target && /^https?:\/\//i.test(target)) destination = target;
+        const token = params.get("t");
+        let destination = new URL("/", request.url).toString();
+        let valid = false;
+        if (recipientId && target && /^[0-9a-f-]{36}$/i.test(recipientId)) {
+          try {
+            const parsed = new URL(target);
+            const { validCampaignTrackingToken } = await import("@/lib/campaign-tracking-security");
+            valid =
+              ["http:", "https:"].includes(parsed.protocol) &&
+              validCampaignTrackingToken(token, "click", recipientId, target);
+            if (valid) destination = parsed.toString();
+          } catch {
+            valid = false;
+          }
+        }
 
-        if (recipientId) {
+        if (recipientId && valid) {
           try {
             const { serverDb } = await import("@/lib/db.server");
             const { data: row } = await serverDb

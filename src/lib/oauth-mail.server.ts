@@ -2,6 +2,7 @@ import { deadlineFetch } from "./request-deadline";
 import { appOrigin } from "./app-origin";
 import { requireUser } from "./auth.server";
 import { randomBytes, randomUUID } from "node:crypto";
+import { safeSecretEqual } from "./secure-share-security";
 
 export type OAuthProvider = "google" | "microsoft";
 const config = {
@@ -81,7 +82,7 @@ export async function finishMailOAuth(provider: OAuthProvider, request: Request)
   const cookie = request.headers
     .get("cookie")
     ?.match(new RegExp(`(?:^|; )gwero_oauth_${provider}=([^;]+)`))?.[1];
-  if (!code || !state || !cookie || state !== cookie)
+  if (!code || !state || !cookie || !safeSecretEqual(state, cookie))
     return redirectResult(origin, "error", "OAuth state check failed");
   const body = new URLSearchParams({
     client_id: item.clientId,

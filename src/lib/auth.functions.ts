@@ -70,27 +70,46 @@ export const bootstrapAdministrator = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { getPool } = await import("./db.server");
     const db = getPool();
-    const [counts] = await db.query(
-      "SELECT COUNT(*) AS total FROM system_users WHERE password_hash IS NOT NULL",
-    );
-    if (Number((counts as Array<{ total: number }>)[0]?.total || 0) > 0)
-      throw new Error("Administrator setup has already been completed.");
-    const [roles] = await db.execute("SELECT id FROM roles WHERE name = 'Administrator' LIMIT 1");
-    const roleId = (roles as Array<{ id: string }>)[0]?.id;
-    if (!roleId) throw new Error("Administrator role is unavailable. Run the database migration.");
     const { randomUUID } = await import("node:crypto");
     const id = randomUUID();
-    await db.execute(
-      `INSERT INTO system_users (id, full_name, email, role_id, status, password_hash)
-       VALUES (?, ?, ?, ?, 'active', ?)`,
-      [
-        id,
-        data.fullName.trim(),
-        data.email.trim().toLowerCase(),
-        roleId,
-        await hashPassword(data.password),
-      ],
-    );
+    const fullName = data.fullName.trim();
+    const email = data.email.trim().toLowerCase();
+    if (!fullName || !/^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(email))
+      throw new Error("Enter a valid name and email address.");
+    const passwordHash = await hashPassword(data.password);
+    const connection = await db.getConnection();
+    let locked = false;
+    try {
+      const [lockRows] = await connection.query(
+        "SELECT GET_LOCK('gwero:bootstrap-administrator', 10) acquired",
+      );
+      locked = Number((lockRows as Array<{ acquired: number }>)[0]?.acquired) === 1;
+      if (!locked) throw new Error("Administrator setup is busy. Try again.");
+      await connection.beginTransaction();
+      const [existingUsers] = await connection.query(
+        "SELECT id FROM system_users WHERE password_hash IS NOT NULL LIMIT 1 FOR UPDATE",
+      );
+      if ((existingUsers as Array<{ id: string }>).length > 0)
+        throw new Error("Administrator setup has already been completed.");
+      const [roles] = await connection.execute(
+        "SELECT id FROM roles WHERE name = 'Administrator' LIMIT 1",
+      );
+      const roleId = (roles as Array<{ id: string }>)[0]?.id;
+      if (!roleId)
+        throw new Error("Administrator role is unavailable. Run the database migration.");
+      await connection.execute(
+        `INSERT INTO system_users (id, full_name, email, role_id, status, password_hash)
+         VALUES (?, ?, ?, ?, 'active', ?)`,
+        [id, fullName, email, roleId, passwordHash],
+      );
+      await connection.commit();
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      if (locked) await connection.query("SELECT RELEASE_LOCK('gwero:bootstrap-administrator')");
+      connection.release();
+    }
     await issueSession(id);
     return { ok: true };
   });
@@ -115,6 +134,69 @@ export const saveSystemUser = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { getPool } = await import("./db.server");
     const db = getPool();
+    const administrator = context.user.roleName === "Administrator";
+    let requestedRole: { id: string; name: string } | undefined;
+    if (data.roleId) {
+      const [requestedRoleRows] = await db.execute(
+        "SELECT id, name FROM roles WHERE id = ? LIMIT 1",
+        [data.roleId],
+      );
+      requestedRole = (requestedRoleRows as Array<{ id: string; name: string }>)[0];
+    }
+    if (data.roleId && !requestedRole) throw new Error("The selected role does not exist.");
+    if (!administrator && requestedRole?.name === "Administrator")
+      throw new Error("Only an administrator can assign the Administrator role.");
+    if (!administrator && data.roleId) {
+      const [rolePermissionRows] = await db.execute(
+        `SELECT p.permission_key FROM role_permissions rp
+         JOIN permissions p ON p.id = rp.permission_id WHERE rp.role_id = ?`,
+        [data.roleId],
+      );
+      const exceedsCaller = (rolePermissionRows as Array<{ permission_key: string }>).some(
+        (row) => !context.user.permissions.includes(row.permission_key),
+      );
+      if (exceedsCaller) throw new Error("You cannot assign permissions you do not have.");
+    }
+    let existingRoleName: string | null = null;
+    if (data.id) {
+      const [targetRows] = await db.execute(
+        `SELECT u.status, u.role_id, r.name AS role_name FROM system_users u
+         LEFT JOIN roles r ON r.id = u.role_id WHERE u.id = ? LIMIT 1`,
+        [data.id],
+      );
+      const target = (
+        targetRows as Array<{ role_name: string | null; role_id: string | null; status: string }>
+      )[0];
+      if (!target) throw new Error("User not found.");
+      existingRoleName = target.role_name;
+      if (!administrator && existingRoleName === "Administrator")
+        throw new Error("Only an administrator can manage an administrator account.");
+      if (!administrator && target.role_id) {
+        const [targetPermissionRows] = await db.execute(
+          `SELECT p.permission_key FROM role_permissions rp
+           JOIN permissions p ON p.id=rp.permission_id WHERE rp.role_id=?`,
+          [target.role_id],
+        );
+        if (
+          (targetPermissionRows as Array<{ permission_key: string }>).some(
+            (row) => !context.user.permissions.includes(row.permission_key),
+          )
+        )
+          throw new Error("You cannot manage a user with permissions you do not have.");
+      }
+      const removingLastAdministrator =
+        existingRoleName === "Administrator" &&
+        target.status === "active" &&
+        (data.status !== "active" || requestedRole?.name !== "Administrator");
+      if (removingLastAdministrator) {
+        const [adminRows] = await db.execute(
+          `SELECT COUNT(*) AS total FROM system_users u JOIN roles r ON r.id=u.role_id
+           WHERE r.name='Administrator' AND u.status='active'`,
+        );
+        if (Number((adminRows as Array<{ total: number }>)[0]?.total || 0) <= 1)
+          throw new Error("The last active administrator cannot be suspended or demoted.");
+      }
+    }
     const values: Array<string | null> = [
       data.fullName.trim(),
       data.email.trim().toLowerCase(),
@@ -169,7 +251,43 @@ export const deleteSystemUser = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     if (data.id === context.user.id) throw new Error("You cannot delete your own account.");
     const { getPool } = await import("./db.server");
-    await getPool().execute("DELETE FROM system_users WHERE id = ?", [data.id]);
+    const db = getPool();
+    const [targetRows] = await db.execute(
+      `SELECT u.status, u.role_id, r.name AS role_name FROM system_users u
+       LEFT JOIN roles r ON r.id=u.role_id WHERE u.id=? LIMIT 1`,
+      [data.id],
+    );
+    const target = (
+      targetRows as Array<{ role_name: string | null; role_id: string | null; status: string }>
+    )[0];
+    if (!target) throw new Error("User not found.");
+    if (context.user.roleName !== "Administrator" && target.role_id) {
+      const [targetPermissionRows] = await db.execute(
+        `SELECT p.permission_key FROM role_permissions rp
+         JOIN permissions p ON p.id=rp.permission_id WHERE rp.role_id=?`,
+        [target.role_id],
+      );
+      if (
+        (targetPermissionRows as Array<{ permission_key: string }>).some(
+          (row) => !context.user.permissions.includes(row.permission_key),
+        )
+      )
+        throw new Error("You cannot delete a user with permissions you do not have.");
+    }
+    if (target.role_name === "Administrator") {
+      if (context.user.roleName !== "Administrator")
+        throw new Error("Only an administrator can delete an administrator account.");
+      const [adminRows] = await db.execute(
+        `SELECT COUNT(*) AS total FROM system_users u JOIN roles r ON r.id=u.role_id
+         WHERE r.name='Administrator' AND u.status='active'`,
+      );
+      if (
+        target.status === "active" &&
+        Number((adminRows as Array<{ total: number }>)[0]?.total || 0) <= 1
+      )
+        throw new Error("The last active administrator cannot be deleted.");
+    }
+    await db.execute("DELETE FROM system_users WHERE id = ?", [data.id]);
     return { ok: true };
   });
 
@@ -191,9 +309,17 @@ export const setRolePermission = createServerFn({ method: "POST" })
   .validator((data: { roleId: string; permissionId: string; enabled: boolean }) =>
     validateContract(data, "setRolePermission"),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    if (context.user.roleName !== "Administrator")
+      throw new Error("Only an administrator can change role permissions.");
     const { getPool } = await import("./db.server");
     const db = getPool();
+    const [roleRows] = await db.execute("SELECT is_system FROM roles WHERE id=? LIMIT 1", [
+      data.roleId,
+    ]);
+    const role = (roleRows as Array<{ is_system: number }>)[0];
+    if (!role) throw new Error("Role not found.");
+    if (role.is_system) throw new Error("System role permissions cannot be changed.");
     if (data.enabled) {
       const { randomUUID } = await import("node:crypto");
       await db.execute(

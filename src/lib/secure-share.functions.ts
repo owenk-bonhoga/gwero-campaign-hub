@@ -3,6 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { permissionMiddleware } from "./auth.middleware";
 import {
   safeHashEqual,
+  secureShareSecret,
   secureOtp,
   secureOtpHash,
   secureToken,
@@ -27,7 +28,6 @@ const cleanText = (value: unknown, max = 1000) =>
   String(value || "")
     .trim()
     .slice(0, max);
-const shareSecret = () => process.env["SESSION_SECRET"] || "";
 const origin = () => (process.env["APP_URL"] || "https://os.gwerosolutions.com").replace(/\/$/, "");
 async function pool() {
   return (await import("./db.server")).getPool();
@@ -581,7 +581,7 @@ export const requestSecureShareOtp = createServerFn({ method: "POST" })
           id,
           String(session["recipient_id"]),
           String(session["session_hash"]),
-          secureOtpHash(code, String(session["session_hash"]), shareSecret()),
+          secureOtpHash(code, String(session["session_hash"]), secureShareSecret()),
         ],
       );
       await connection.commit();
@@ -641,7 +641,7 @@ export const verifySecureShareOtp = createServerFn({ method: "POST" })
         "UPDATE secure_document_share_otps SET attempts=attempts+1 WHERE id=?",
         [otp.id],
       );
-      const actual = secureOtpHash(data.code, String(session["session_hash"]), shareSecret());
+      const actual = secureOtpHash(data.code, String(session["session_hash"]), secureShareSecret());
       if (!safeHashEqual(otp.code_hash, actual)) {
         await connection.commit();
         throw new Error("Incorrect code. Please try again.");

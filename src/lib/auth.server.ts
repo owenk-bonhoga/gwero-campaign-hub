@@ -29,6 +29,7 @@ function tokenHash(token: string) {
 
 export async function hashPassword(password: string) {
   if (password.length < 10) throw new Error("Password must be at least 10 characters.");
+  if (password.length > 200) throw new Error("Password must be 200 characters or fewer.");
   const salt = randomBytes(16);
   const derived = (await scrypt(password, salt, 64)) as Buffer;
   return `scrypt:${salt.toString("base64")}:${derived.toString("base64")}`;

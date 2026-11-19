@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   safeHashEqual,
+  safeSecretEqual,
   secureOtpHash,
   secureShareAvailable,
   secureShareMayServe,
@@ -14,6 +15,11 @@ test("secure share tokens are opaque and stored only as hashes", () => {
   assert.match(token, /^[a-f0-9]{64}$/);
   assert.notEqual(secureTokenHash(token), token);
   assert(safeHashEqual(secureTokenHash(token), secureTokenHash(token)));
+});
+
+test("secret comparisons do not depend on input length", () => {
+  assert(safeSecretEqual("same-secret", "same-secret"));
+  assert(!safeSecretEqual("short", "a-completely-different-and-longer-secret"));
 });
 
 test("view-only recipients cannot use the download path", () => {

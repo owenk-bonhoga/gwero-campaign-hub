@@ -6,6 +6,7 @@ import { getPool } from "./db.server";
 import { buildMime } from "./mime.server";
 import { htmlToText, personalize, type ProspectLike } from "./personalize";
 import { smtpSend } from "./smtp.server";
+import { campaignTrackingToken } from "./campaign-tracking-security";
 
 type CampaignRow = {
   id: string;
@@ -100,11 +101,12 @@ function trackHtml(html: string, recipientId: string, opens: boolean, clicks: bo
   let tracked = html;
   if (clicks) {
     tracked = tracked.replace(/href="(https?:\/\/[^"]+)"/gi, (_match, url: string) => {
-      return `href="${origin}/api/public/t/click?r=${recipientId}&u=${encodeURIComponent(url)}"`;
+      const token = campaignTrackingToken("click", recipientId, url);
+      return `href="${origin}/api/public/t/click?r=${recipientId}&u=${encodeURIComponent(url)}&t=${token}"`;
     });
   }
   if (opens)
-    tracked += `<img src="${origin}/api/public/t/open?r=${recipientId}" width="1" height="1" alt="" style="display:none" />`;
+    tracked += `<img src="${origin}/api/public/t/open?r=${recipientId}&t=${campaignTrackingToken("open", recipientId)}" width="1" height="1" alt="" style="display:none" />`;
   tracked += `<p style="margin-top:24px;font-size:12px;color:#64748b"><a href="${origin}/api/public/unsubscribe?r=${recipientId}" style="color:#64748b">Unsubscribe from campaign emails</a></p>`;
   return tracked;
 }

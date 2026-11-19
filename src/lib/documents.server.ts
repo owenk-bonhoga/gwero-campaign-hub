@@ -68,9 +68,14 @@ export async function getDocumentWorkspaceServer(user: AuthUser): Promise<Docume
          LEFT JOIN document_categories c ON c.id = d.category_id
          LEFT JOIN system_users owner ON owner.id = d.owner_id
          LEFT JOIN document_access da ON da.document_id = d.id AND da.user_id = ?
-        WHERE ? = 1 OR d.owner_id = ? OR d.owner_id IS NULL OR da.user_id IS NOT NULL
+        WHERE ? = 1 OR d.owner_id = ? OR (d.owner_id IS NULL AND ? = 1) OR da.user_id IS NOT NULL
         ORDER BY d.updated_at DESC`,
-      [user.id, isAdmin(user) ? 1 : 0, user.id],
+      [
+        user.id,
+        isAdmin(user) ? 1 : 0,
+        user.id,
+        user.permissions.includes("documents.manage") ? 1 : 0,
+      ],
     ),
     executeRead("SELECT id, name, description, color FROM document_categories ORDER BY name ASC"),
     executeRead(
