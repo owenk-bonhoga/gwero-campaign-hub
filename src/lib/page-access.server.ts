@@ -3,10 +3,13 @@ import { mayAccessPage } from "./page-access";
 
 export async function requirePageAccess(page: string, user: AuthUser): Promise<void> {
   if (!mayAccessPage(page, user.permissions)) throw new Error("Permission denied");
-  const match = page.split("?")[0]!.match(/^\/documents\/([0-9a-f-]{36})\/?$/i);
-  if (match) {
+  const url = new URL(page, "https://gwero.invalid");
+  const match = url.pathname.match(/^\/documents\/([0-9a-f-]{36})\/?$/i);
+  const documentId =
+    match?.[1] || (url.pathname === "/documents" ? url.searchParams.get("document") : null);
+  if (documentId) {
     const { requireDocumentLevel } = await import("./documents.server");
-    await requireDocumentLevel(match[1]!, "view", user);
+    await requireDocumentLevel(documentId, "view", user);
   }
 }
 

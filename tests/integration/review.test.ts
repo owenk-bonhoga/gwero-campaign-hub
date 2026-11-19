@@ -5,7 +5,7 @@ import mysql from "mysql2/promise";
 import { getPool, runClientQuery, serverDb } from "../../src/lib/db.server";
 import { directoryPage } from "../../src/lib/directory.server";
 import { requireDocumentLevel } from "../../src/lib/documents.server";
-import { requireNoteAccess } from "../../src/lib/page-access.server";
+import { requirePageAccess, requireNoteAccess } from "../../src/lib/page-access.server";
 import { dashboardForUser } from "../../src/lib/dashboard.server";
 import { withDatabaseDeadlines } from "../../src/lib/database-deadline";
 import { consumeLoginAttempt } from "../../src/lib/login-limit.server";
