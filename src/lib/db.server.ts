@@ -243,6 +243,7 @@ const fields: Record<TableName, string[]> = {
     "tax_rate",
     "discount",
     "notes",
+    "template_data",
     "created_at",
     "updated_at",
   ],
@@ -251,6 +252,7 @@ const fields: Record<TableName, string[]> = {
     "quotation_id",
     "description",
     "quantity",
+    "unit",
     "unit_price",
     "created_at",
     "updated_at",
@@ -837,6 +839,7 @@ const jsonFields: Record<string, string[]> = {
   cost_sheets: ["column_rules"],
   cost_sheet_templates: ["column_rules", "columns_json"],
   cost_sheet_items: ["custom_values", "attachments"],
+  quotations: ["template_data"],
 };
 const booleanFields: Record<string, string[]> = {
   mailboxes: ["smtp_secure", "is_default"],
@@ -1063,7 +1066,8 @@ async function enrich(table: TableName, input: DbInput, selected: Array<Record<s
   }
   if (table === "campaign_recipients" || table === "replies")
     await related("prospects", "prospect_id", "id");
-  if (table === "deals" || table === "agreements") await related("clients", "client_id", "id");
+  if (table === "deals" || table === "agreements" || table === "quotations")
+    await related("clients", "client_id", "id");
   if (table === "replies") await related("campaigns", "campaign_id", "id");
   return selected;
 }

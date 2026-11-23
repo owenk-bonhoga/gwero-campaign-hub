@@ -4,6 +4,8 @@ import { AppShell, money } from "@/components/AppShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { LineItems, sum } from "@/components/LineItems";
 import { db } from "@/lib/db";
+import { QuotationTemplateActions } from "@/components/QuotationTemplateActions";
+import type { QuotationTemplateData } from "@/lib/db.types";
 
 export const Route = createFileRoute("/quotations/$id")({
   component: QuotationDetail,
@@ -26,7 +28,7 @@ function QuotationDetail() {
     queryFn: async () => {
       const { data, error } = await db
         .from("quotations")
-        .select("*, clients(name)")
+        .select("*, clients(name, company, address)")
         .eq("id", id)
         .maybeSingle();
       if (error) throw new Error(error.message);
@@ -40,8 +42,22 @@ function QuotationDetail() {
     <AppShell
       title={quote?.title ?? "Quotation"}
       description={`${quote?.quote_number ?? ""} · ${
-        (quote?.clients as { name?: string } | null)?.name ?? "No client"
+        (quote?.clients as { name?: string; company?: string } | null)?.company ??
+        (quote?.clients as { name?: string } | null)?.name ??
+        "No client"
       }`}
+      actions={
+        quote ? (
+          <QuotationTemplateActions
+            quotationId={id}
+            templateData={quote.template_data as QuotationTemplateData | null}
+            issueDate={quote.issue_date}
+            validUntil={quote.valid_until}
+            taxRate={Number(quote.tax_rate || 0)}
+            discount={Number(quote.discount || 0)}
+          />
+        ) : null
+      }
     >
       <div className="space-y-4">
         <Card>
@@ -59,6 +75,7 @@ function QuotationDetail() {
           fields={[
             { name: "description", label: "Description", className: "min-w-64 flex-1" },
             { name: "quantity", label: "Qty", type: "number", defaultValue: "1" },
+            { name: "unit", label: "Unit", defaultValue: "Each" },
             { name: "unit_price", label: "Unit price", type: "number", defaultValue: "0" },
           ]}
           total={(rows) => {

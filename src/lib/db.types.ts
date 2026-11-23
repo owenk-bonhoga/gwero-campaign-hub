@@ -244,6 +244,7 @@ export interface Quotation {
   tax_rate: number;
   discount: number;
   notes: string | null;
+  template_data: QuotationTemplateData | null;
   created_at: string;
   updated_at: string;
 }
@@ -252,9 +253,37 @@ export interface QuotationItem {
   quotation_id: string;
   description: string;
   quantity: number;
+  unit: string;
   unit_price: number;
   created_at: string;
   updated_at: string;
+}
+export interface QuotationTemplateData {
+  procurementReference?: string;
+  attention?: string;
+  deliveryLocation?: string;
+  internationalFreight?: number;
+  cargoInsurance?: number;
+  customsAndImportTaxes?: number;
+  clearingAndLocalDelivery?: number;
+  ppdaLevy?: number;
+  deliveryPeriod?: string;
+  deliveryBasis?: string;
+  warranty?: string;
+  installation?: string;
+  afterSalesSupport?: string;
+  paymentTerms?: string;
+  priceValidity?: string;
+  taxes?: string;
+  exchangeRate?: string;
+  variations?: string;
+  titleAndRisk?: string;
+  bankName?: string;
+  bankAccountName?: string;
+  bankAccountNumber?: string;
+  branchAndSwift?: string;
+  supplierAuthorizerName?: string;
+  supplierAuthorizerTitle?: string;
 }
 export interface Project {
   id: string;

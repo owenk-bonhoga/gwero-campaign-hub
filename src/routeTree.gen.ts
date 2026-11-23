@@ -62,6 +62,7 @@ import { Route as ApiOauthMicrosoftCallbackRouteImport } from './routes/api/oaut
 import { Route as ApiOauthMicrosoftStartRouteImport } from './routes/api/oauth/microsoft/start'
 import { Route as ApiPublicTClickRouteImport } from './routes/api/public/t/click'
 import { Route as ApiPublicTOpenRouteImport } from './routes/api/public/t/open'
+import { Route as ApiQuotationsIdDocumentRouteImport } from './routes/api/quotations/$id/document'
 import { Route as ApiSecureShareDocumentItemIdRouteImport } from './routes/api/secure-share/document/$itemId'
 import { Route as ProspectsIdContactsContactIdRouteImport } from './routes/prospects.$id.contacts.$contactId'
 
@@ -332,6 +333,11 @@ const ApiPublicTOpenRoute = ApiPublicTOpenRouteImport.update({
   path: '/api/public/t/open',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiQuotationsIdDocumentRoute = ApiQuotationsIdDocumentRouteImport.update({
+  id: '/api/quotations/$id/document',
+  path: '/api/quotations/$id/document',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiSecureShareDocumentItemIdRoute =
   ApiSecureShareDocumentItemIdRouteImport.update({
     id: '/api/secure-share/document/$itemId',
@@ -399,6 +405,7 @@ export interface FileRoutesByFullPath {
   '/api/oauth/microsoft/start': typeof ApiOauthMicrosoftStartRoute
   '/api/public/t/click': typeof ApiPublicTClickRoute
   '/api/public/t/open': typeof ApiPublicTOpenRoute
+  '/api/quotations/$id/document': typeof ApiQuotationsIdDocumentRoute
   '/api/secure-share/document/$itemId': typeof ApiSecureShareDocumentItemIdRoute
   '/prospects/$id/contacts/$contactId': typeof ProspectsIdContactsContactIdRoute
 }
@@ -456,6 +463,7 @@ export interface FileRoutesByTo {
   '/api/oauth/microsoft/start': typeof ApiOauthMicrosoftStartRoute
   '/api/public/t/click': typeof ApiPublicTClickRoute
   '/api/public/t/open': typeof ApiPublicTOpenRoute
+  '/api/quotations/$id/document': typeof ApiQuotationsIdDocumentRoute
   '/api/secure-share/document/$itemId': typeof ApiSecureShareDocumentItemIdRoute
   '/prospects/$id/contacts/$contactId': typeof ProspectsIdContactsContactIdRoute
 }
@@ -514,6 +522,7 @@ export interface FileRoutesById {
   '/api/oauth/microsoft/start': typeof ApiOauthMicrosoftStartRoute
   '/api/public/t/click': typeof ApiPublicTClickRoute
   '/api/public/t/open': typeof ApiPublicTOpenRoute
+  '/api/quotations/$id/document': typeof ApiQuotationsIdDocumentRoute
   '/api/secure-share/document/$itemId': typeof ApiSecureShareDocumentItemIdRoute
   '/prospects/$id/contacts/$contactId': typeof ProspectsIdContactsContactIdRoute
 }
@@ -573,6 +582,7 @@ export interface FileRouteTypes {
     | '/api/oauth/microsoft/start'
     | '/api/public/t/click'
     | '/api/public/t/open'
+    | '/api/quotations/$id/document'
     | '/api/secure-share/document/$itemId'
     | '/prospects/$id/contacts/$contactId'
   fileRoutesByTo: FileRoutesByTo
@@ -630,6 +640,7 @@ export interface FileRouteTypes {
     | '/api/oauth/microsoft/start'
     | '/api/public/t/click'
     | '/api/public/t/open'
+    | '/api/quotations/$id/document'
     | '/api/secure-share/document/$itemId'
     | '/prospects/$id/contacts/$contactId'
   id:
@@ -687,6 +698,7 @@ export interface FileRouteTypes {
     | '/api/oauth/microsoft/start'
     | '/api/public/t/click'
     | '/api/public/t/open'
+    | '/api/quotations/$id/document'
     | '/api/secure-share/document/$itemId'
     | '/prospects/$id/contacts/$contactId'
   fileRoutesById: FileRoutesById
@@ -737,6 +749,7 @@ export interface RootRouteChildren {
   ApiOauthMicrosoftStartRoute: typeof ApiOauthMicrosoftStartRoute
   ApiPublicTClickRoute: typeof ApiPublicTClickRoute
   ApiPublicTOpenRoute: typeof ApiPublicTOpenRoute
+  ApiQuotationsIdDocumentRoute: typeof ApiQuotationsIdDocumentRoute
   ApiSecureShareDocumentItemIdRoute: typeof ApiSecureShareDocumentItemIdRoute
 }
 
@@ -1113,6 +1126,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicTOpenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/quotations/$id/document': {
+      id: '/api/quotations/$id/document'
+      path: '/api/quotations/$id/document'
+      fullPath: '/api/quotations/$id/document'
+      preLoaderRoute: typeof ApiQuotationsIdDocumentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/secure-share/document/$itemId': {
       id: '/api/secure-share/document/$itemId'
       path: '/api/secure-share/document/$itemId'
@@ -1276,6 +1296,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiOauthMicrosoftStartRoute: ApiOauthMicrosoftStartRoute,
   ApiPublicTClickRoute: ApiPublicTClickRoute,
   ApiPublicTOpenRoute: ApiPublicTOpenRoute,
+  ApiQuotationsIdDocumentRoute: ApiQuotationsIdDocumentRoute,
   ApiSecureShareDocumentItemIdRoute: ApiSecureShareDocumentItemIdRoute,
 }
 export const routeTree = rootRouteImport

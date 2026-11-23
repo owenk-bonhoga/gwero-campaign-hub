@@ -173,6 +173,7 @@ CREATE TABLE IF NOT EXISTS quotations (
   KEY quotations_client_idx (client_id),
   CONSTRAINT quotations_client_fk FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+ALTER TABLE quotations ADD COLUMN IF NOT EXISTS template_data JSON NULL;
 
 CREATE TABLE IF NOT EXISTS quotation_items (
   id CHAR(36) PRIMARY KEY, quotation_id CHAR(36) NOT NULL, description TEXT NOT NULL,
@@ -181,6 +182,7 @@ CREATE TABLE IF NOT EXISTS quotation_items (
   KEY quotation_items_idx (quotation_id),
   CONSTRAINT quotation_items_fk FOREIGN KEY (quotation_id) REFERENCES quotations(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+ALTER TABLE quotation_items ADD COLUMN IF NOT EXISTS unit VARCHAR(40) NOT NULL DEFAULT 'Each';
 
 CREATE TABLE IF NOT EXISTS projects (
   id CHAR(36) PRIMARY KEY, name VARCHAR(255) NOT NULL, code VARCHAR(60), client_id CHAR(36),
