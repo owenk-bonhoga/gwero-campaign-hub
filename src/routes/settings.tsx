@@ -462,6 +462,7 @@ function GeneralTab({
   onSaved: () => void;
 }) {
   const [editing, setEditing] = useState(false);
+  const [editingOffice, setEditingOffice] = useState(false);
   const [form, setForm] = useState({
     system_name: initial["system_name"] || "Gwero OS",
     primary_color: initial["primary_color"] || "#1c2745",
@@ -479,106 +480,221 @@ function GeneralTab({
     },
     onError: (e: Error) => toast.error(e.message),
   });
+  const [office, setOffice] = useState({
+    office_name: initial["office_name"] || "",
+    office_address_line: initial["office_address_line"] || "",
+    office_city: initial["office_city"] || "",
+    office_region: initial["office_region"] || "",
+    office_country: initial["office_country"] || "Malawi",
+    office_postal_code: initial["office_postal_code"] || "",
+    office_phone: initial["office_phone"] || "",
+    office_email: initial["office_email"] || "",
+  });
+  const saveOffice = useMutation({
+    mutationFn: () => saveSystemSettings({ data: { group: "office", values: office } }),
+    onSuccess: () => {
+      toast.success("Office address saved.");
+      setEditingOffice(false);
+      onSaved();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
   const set = (key: keyof typeof form, value: string) =>
     setForm((old) => ({ ...old, [key]: value }));
+  const setOfficeField = (key: keyof typeof office, value: string) =>
+    setOffice((current) => ({ ...current, [key]: value }));
+  const officeSummary = [
+    office.office_address_line,
+    office.office_city,
+    office.office_region,
+    office.office_postal_code,
+    office.office_country,
+  ].filter(Boolean);
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <CardTitle>Brand and system identity</CardTitle>
-            <CardDescription>
-              Changes are stored centrally for the interface and outbound communication.
-            </CardDescription>
-          </div>
-          <Button variant="outline" onClick={() => setEditing((value) => !value)}>
-            {editing ? "Cancel" : "Edit branding"}
-          </Button>
-        </div>
-      </CardHeader>
-      {editing ? (
-        <CardContent className="grid gap-4 md:grid-cols-2">
-          <Field
-            label="System name"
-            value={form.system_name}
-            onChange={(v) => set("system_name", v)}
-          />
-          <div className="space-y-2">
-            <Label>Font family</Label>
-            <Select value={form.font_family} onValueChange={(v) => set("font_family", v)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {[
-                  "Inter",
-                  "Roboto",
-                  "Arial",
-                  "Georgia",
-                  "Verdana",
-                  "Trebuchet MS",
-                  "Times New Roman",
-                  "Courier New",
-                ].map((font) => (
-                  <SelectItem key={font} value={font}>
-                    {font}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <Field
-            label="Primary color"
-            type="color"
-            value={form.primary_color}
-            onChange={(v) => set("primary_color", v)}
-          />
-          <Field
-            label="Accent color"
-            type="color"
-            value={form.accent_color}
-            onChange={(v) => set("accent_color", v)}
-          />
-          <ImageUpload
-            label="System logo"
-            value={form.logo_url}
-            onChange={(v) => set("logo_url", v)}
-            accept="image/png,image/jpeg,image/webp,image/svg+xml"
-          />
-          <ImageUpload
-            label="Browser icon"
-            value={form.icon_url}
-            onChange={(v) => set("icon_url", v)}
-            accept="image/png,image/x-icon,image/svg+xml"
-          />
-          <Button
-            className="md:col-span-2 md:w-fit"
-            disabled={save.isPending}
-            onClick={() => save.mutate()}
-          >
-            Save general settings
-          </Button>
-        </CardContent>
-      ) : (
-        <CardContent>
-          <div className="flex items-center gap-3">
-            {form.logo_url ? (
-              <img
-                src={form.logo_url}
-                alt="Current logo"
-                className="h-12 w-28 object-contain object-left"
-              />
-            ) : null}
+    <div className="space-y-5">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="font-semibold">{form.system_name}</p>
-              <p className="text-sm text-muted-foreground">
-                {form.font_family} · {form.primary_color}
-              </p>
+              <CardTitle>Brand and system identity</CardTitle>
+              <CardDescription>
+                Changes are stored centrally for the interface and outbound communication.
+              </CardDescription>
             </div>
+            <Button variant="outline" onClick={() => setEditing((value) => !value)}>
+              {editing ? "Cancel" : "Edit branding"}
+            </Button>
           </div>
-        </CardContent>
-      )}
-    </Card>
+        </CardHeader>
+        {editing ? (
+          <CardContent className="grid gap-4 md:grid-cols-2">
+            <Field
+              label="System name"
+              value={form.system_name}
+              onChange={(v) => set("system_name", v)}
+            />
+            <div className="space-y-2">
+              <Label>Font family</Label>
+              <Select value={form.font_family} onValueChange={(v) => set("font_family", v)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[
+                    "Inter",
+                    "Roboto",
+                    "Arial",
+                    "Georgia",
+                    "Verdana",
+                    "Trebuchet MS",
+                    "Times New Roman",
+                    "Courier New",
+                  ].map((font) => (
+                    <SelectItem key={font} value={font}>
+                      {font}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Field
+              label="Primary color"
+              type="color"
+              value={form.primary_color}
+              onChange={(v) => set("primary_color", v)}
+            />
+            <Field
+              label="Accent color"
+              type="color"
+              value={form.accent_color}
+              onChange={(v) => set("accent_color", v)}
+            />
+            <ImageUpload
+              label="System logo"
+              value={form.logo_url}
+              onChange={(v) => set("logo_url", v)}
+              accept="image/png,image/jpeg,image/webp,image/svg+xml"
+            />
+            <ImageUpload
+              label="Browser icon"
+              value={form.icon_url}
+              onChange={(v) => set("icon_url", v)}
+              accept="image/png,image/x-icon,image/svg+xml"
+            />
+            <Button
+              className="md:col-span-2 md:w-fit"
+              disabled={save.isPending}
+              onClick={() => save.mutate()}
+            >
+              Save general settings
+            </Button>
+          </CardContent>
+        ) : (
+          <CardContent>
+            <div className="flex items-center gap-3">
+              {form.logo_url ? (
+                <img
+                  src={form.logo_url}
+                  alt="Current logo"
+                  className="h-12 w-28 object-contain object-left"
+                />
+              ) : null}
+              <div>
+                <p className="font-semibold">{form.system_name}</p>
+                <p className="text-sm text-muted-foreground">
+                  {form.font_family} · {form.primary_color}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        )}
+      </Card>
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <CardTitle>Office address</CardTitle>
+              <CardDescription>
+                The organisation address used by the assistant and available to business documents.
+              </CardDescription>
+            </div>
+            <Button variant="outline" onClick={() => setEditingOffice((value) => !value)}>
+              {editingOffice ? "Cancel" : officeSummary.length ? "Edit address" : "Add address"}
+            </Button>
+          </div>
+        </CardHeader>
+        {editingOffice ? (
+          <CardContent className="grid gap-4 md:grid-cols-2">
+            <Field
+              label="Office name"
+              value={office.office_name}
+              onChange={(value) => setOfficeField("office_name", value)}
+            />
+            <Field
+              label="Street / building"
+              value={office.office_address_line}
+              onChange={(value) => setOfficeField("office_address_line", value)}
+            />
+            <Field
+              label="City"
+              value={office.office_city}
+              onChange={(value) => setOfficeField("office_city", value)}
+            />
+            <Field
+              label="Region / district"
+              value={office.office_region}
+              onChange={(value) => setOfficeField("office_region", value)}
+            />
+            <Field
+              label="Country"
+              value={office.office_country}
+              onChange={(value) => setOfficeField("office_country", value)}
+            />
+            <Field
+              label="Postal code"
+              value={office.office_postal_code}
+              onChange={(value) => setOfficeField("office_postal_code", value)}
+            />
+            <Field
+              label="Office phone"
+              value={office.office_phone}
+              onChange={(value) => setOfficeField("office_phone", value)}
+            />
+            <Field
+              label="Office email"
+              type="email"
+              value={office.office_email}
+              onChange={(value) => setOfficeField("office_email", value)}
+            />
+            <Button
+              className="md:col-span-2 md:w-fit"
+              disabled={saveOffice.isPending}
+              onClick={() => saveOffice.mutate()}
+            >
+              {saveOffice.isPending ? "Saving…" : "Save office address"}
+            </Button>
+          </CardContent>
+        ) : (
+          <CardContent>
+            {officeSummary.length ? (
+              <div className="space-y-1 text-sm">
+                {office.office_name ? (
+                  <p className="font-semibold text-foreground">{office.office_name}</p>
+                ) : null}
+                <p className="text-muted-foreground">{officeSummary.join(", ")}</p>
+                {office.office_phone || office.office_email ? (
+                  <p className="text-muted-foreground">
+                    {[office.office_phone, office.office_email].filter(Boolean).join(" · ")}
+                  </p>
+                ) : null}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No office address has been added yet.</p>
+            )}
+          </CardContent>
+        )}
+      </Card>
+    </div>
   );
 }
 
