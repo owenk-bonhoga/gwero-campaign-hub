@@ -60,6 +60,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { StickyNotes } from "@/components/StickyNotes";
 import { GlobalSearch } from "@/components/GlobalSearch";
+import { GlobalAiAssistant } from "@/components/GlobalAiAssistant";
 const LazyDocumentViewer = lazy(() =>
   import("@/components/DocumentViewer").then((m) => ({ default: m.GlobalDocumentViewer })),
 );
@@ -573,6 +574,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
         </Suspense>
       ) : null}
       <PlatformHelp />
+      {auth?.user?.id ? <GlobalAiAssistant userId={auth.user.id} /> : null}
     </div>
   );
 }

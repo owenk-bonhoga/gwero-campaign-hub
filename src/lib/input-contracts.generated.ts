@@ -185,6 +185,36 @@ export const inputContracts = {
     kind: "object",
     properties: { id: { contract: { kind: "string" }, optional: false } },
   },
+  askGweroAssistant: {
+    kind: "object",
+    properties: {
+      history: {
+        contract: {
+          item: {
+            kind: "object",
+            properties: {
+              content: { contract: { kind: "string" }, optional: false },
+              role: {
+                contract: {
+                  choices: [
+                    { kind: "literal", values: ["assistant"] },
+                    { kind: "literal", values: ["user"] },
+                  ],
+                  kind: "union",
+                },
+                optional: false,
+              },
+            },
+          },
+          kind: "array",
+        },
+        optional: true,
+      },
+      message: { contract: { kind: "string" }, optional: false },
+      pagePath: { contract: { kind: "string" }, optional: true },
+      pageTitle: { contract: { kind: "string" }, optional: true },
+    },
+  },
   bootstrapAdministrator: {
     kind: "object",
     properties: {
